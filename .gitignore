@@ -205,3 +205,26 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Discord Bot specific
+# Bot tokens and secrets
+config.json
+secrets.json
+*.token
+
+# Audio files and downloads
+*.mp3
+*.mp4
+*.webm
+*.m4a
+*.wav
+*.flac
+
+# Bot logs
+logs/
+bot.log
+
+# Temporary files
+tmp/
+temp/
+.tmp/
