@@ -5,18 +5,22 @@ A modern Python monorepo containing multiple Discord bots built with modern 2025
 ## 🤖 Bots Included
 
 ### 1. Clippy Bot (`apps/clippy_bot/`)
+
 An unhinged version of Microsoft Clippy that randomly appears in your Discord channels with hilariously unhelpful advice and nostalgic chaos.
 
 **Features:**
+
 - Random unhinged responses at intervals (15-45 minutes)
 - 3% chance to respond to any message
 - Slash commands: `/clippy`, `/clippy_wisdom`
 - 30+ unique unhinged quotes inspired by 2024-2025 memes
 
 ### 2. Music Bot (`apps/music_bot/`)
+
 A high-quality YouTube music bot with full queue management and voice channel support.
 
 **Features:**
+
 - `/play [query/url]` - Play music from YouTube or search
 - `/pause` / `/resume` - Control playback
 - `/skip` - Skip current song
@@ -37,6 +41,7 @@ This monorepo uses modern Python tooling and follows 2025 best practices:
 - **Configuration**: Environment-based with `python-dotenv`
 
 ### Directory Structure
+
 ```
 /pycord
 ├── apps/
@@ -64,6 +69,7 @@ This monorepo uses modern Python tooling and follows 2025 best practices:
 ## 🚀 Setup
 
 ### Prerequisites
+
 - Python 3.8+
 - `uv` package manager
 - FFmpeg (for music bot)
@@ -71,11 +77,13 @@ This monorepo uses modern Python tooling and follows 2025 best practices:
 ### Installation
 
 1. **Install uv** (if not already installed):
+
    ```bash
    curl -LsSf https://astral.sh/uv/install.sh | sh
    ```
 
 2. **Clone and install dependencies**:
+
    ```bash
    git clone https://github.com/dunamismax/pycord.git
    cd pycord
@@ -83,6 +91,7 @@ This monorepo uses modern Python tooling and follows 2025 best practices:
    ```
 
 3. **Install FFmpeg** (for music bot):
+
    ```bash
    # macOS
    brew install ffmpeg
@@ -141,12 +150,14 @@ uv run pytest
 ## 🔧 Bot Configuration
 
 ### Clippy Bot Environment Variables
+
 - `CLIPPY_BOT_TOKEN`: Discord bot token
 - `CLIPPY_GUILD_ID`: Guild ID for testing (optional)
 - `CLIPPY_COMMAND_PREFIX`: Command prefix (default: "!")
 - `CLIPPY_DEBUG`: Enable debug logging (default: false)
 
 ### Music Bot Environment Variables
+
 - `MUSIC_BOT_TOKEN`: Discord bot token
 - `MUSIC_GUILD_ID`: Guild ID for testing (optional)
 - `MUSIC_COMMAND_PREFIX`: Command prefix (default: "!")
@@ -173,6 +184,7 @@ uv run pytest
 ### Shared Utilities
 
 The `libs/shared_utils` package provides:
+
 - `BaseBot`: Base class with common Discord bot functionality
 - `load_config()`: Environment-based configuration loading
 - `BotConfig`: Configuration dataclass
@@ -180,6 +192,7 @@ The `libs/shared_utils` package provides:
 ### Code Quality
 
 This project uses `ruff` for all code quality needs:
+
 - Formatting (replaces Black)
 - Import sorting (replaces isort)
 - Linting (replaces flake8, pyupgrade, etc.)
@@ -200,7 +213,7 @@ This project is open source and available under the MIT License.
 
 - **Issues**: Report bugs and request features via GitHub Issues
 - **Documentation**: See inline code documentation and docstrings
-- **Discord.py Docs**: https://docs.pycord.dev/
+- **Discord.py Docs**: <https://docs.pycord.dev/>
 
 ---
 
