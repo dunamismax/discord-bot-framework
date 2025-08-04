@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/dunamismax/discord-bot-framework">
-    <img src="https://readme-typing-svg.demolab.com/?font=Inter&weight=600&size=28&pause=1000&color=5865F2&center=true&vCenter=true&width=1200&height=90&lines=Modern+Discord+Bots+with+Python+3.8%2B;Self-Hosted+on+Ubuntu+%2B+WSL+Support;High-Performance+py-cord+%2B+SQLite+Database;Unhinged+Clippy+Bot+with+Chaotic+Responses;Music+Bot+with+YouTube+%26+Playlist+Support;Advanced+Error+Handling+%26+Logging;Caddy+Reverse+Proxy+Integration;Database+Persistence+%26+Command+Analytics;Slash+Commands+%26+Modern+Discord+Features;Complete+Help+System+%26+User+Experience;Lightning+Fast+uv+Package+Management;Open+Source+MIT+Licensed+Framework" alt="Typing SVG" />
+    <img src="https://readme-typing-svg.demolab.com/?font=Inter&weight=600&size=28&pause=1000&color=5865F2&center=true&vCenter=true&width=1200&height=90&lines=Modern+Discord+Bots+with+Python+3.13%2B;Self-Hosted+on+Ubuntu+%2B+WSL+Support;High-Performance+py-cord+%2B+SQLite+Database;Unhinged+Clippy+Bot+with+Chaotic+Responses;Music+Bot+with+YouTube+%26+Playlist+Support;Advanced+Error+Handling+%26+Logging;Caddy+Reverse+Proxy+Integration;Database+Persistence+%26+Command+Analytics;Slash+Commands+%26+Modern+Discord+Features;Complete+Help+System+%26+User+Experience;Lightning+Fast+uv+Package+Management;Open+Source+MIT+Licensed+Framework" alt="Typing SVG" />
   </a>
 </p>
 
@@ -28,7 +28,7 @@ Designed for self-hosting on Ubuntu Linux with enterprise-grade features
 </p>
 
 <p align="center">
-  <a href="https://python.org/"><img src="https://img.shields.io/badge/Python-3.8+-5865F2.svg?logo=python&logoColor=white&style=for-the-badge" alt="Python Version"></a>
+  <a href="https://python.org/"><img src="https://img.shields.io/badge/Python-3.13+-5865F2.svg?logo=python&logoColor=white&style=for-the-badge" alt="Python Version"></a>
   <a href="https://docs.pycord.dev/"><img src="https://img.shields.io/badge/py--cord-2.6.1+-5865F2.svg?logo=discord&logoColor=white&style=for-the-badge" alt="py-cord Version"></a>
   <a href="https://docs.astral.sh/uv/"><img src="https://img.shields.io/badge/uv-Package_Manager-5865F2.svg?style=for-the-badge&logoColor=white" alt="uv"></a>
   <a href="https://sqlite.org/"><img src="https://img.shields.io/badge/SQLite-3.x-5865F2.svg?logo=sqlite&logoColor=white&style=for-the-badge" alt="SQLite"></a>
@@ -70,7 +70,7 @@ The framework implements user-level cooldowns, input validation with XSS prevent
 ```bash
 # System setup
 sudo apt update && sudo apt upgrade -y
-sudo apt install python3 python3-pip git curl ffmpeg -y
+sudo apt install git curl ffmpeg -y
 
 # Install uv package manager (ultra-fast Python package management)
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -79,6 +79,9 @@ source ~/.bashrc
 # Clone and setup
 git clone https://github.com/dunamismax/discord-bot-framework.git
 cd discord-bot-framework
+
+# Install Python and project dependencies with uv
+uv python install 3.13
 uv sync --all-extras
 
 # Configure bot tokens (create applications at Discord Developer Portal)
@@ -89,8 +92,18 @@ cp .env.example .env
 ./scripts/start-all.sh
 
 # Validate installation
-python validate.py
+uv run python validate.py
 ```
+
+### UV Environment Management
+
+This project relies entirely on [uv](https://docs.astral.sh/uv/) for Python workflow:
+
+- **Python Versions:** The repository pins Python 3.13 via `.python-version`. Run `uv python install` to download and manage the interpreter.
+- **Virtual Environments:** `uv venv` creates an isolated `.venv` directory. `uv sync` will also create it automatically if missing.
+- **Dependencies:** Use `uv sync --all-extras` to install project and workspace dependencies from `uv.lock`.
+- **Running Bots:** All scripts invoke `uv run` so commands execute within the managed environment.
+- **Validation:** Utilities such as `validate.py` run through `uv run python ...` to ensure consistent tooling.
 
 ### Production Deployment
 
@@ -267,7 +280,7 @@ sudo journalctl -u clippy-bot -f              # Real-time log viewing
 <table align="center">
 <tr>
 <td align="center">
-<img src="https://img.shields.io/badge/Language-Python_3.8+-5865F2?style=for-the-badge&logo=python&logoColor=white" alt="Python"><br>
+<img src="https://img.shields.io/badge/Language-Python_3.13+-5865F2?style=for-the-badge&logo=python&logoColor=white" alt="Python"><br>
 <sub>Modern async/await with type hints</sub>
 </td>
 <td align="center">

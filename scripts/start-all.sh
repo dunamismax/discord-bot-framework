@@ -51,6 +51,12 @@ if ! command -v uv &> /dev/null; then
     exit 1
 fi
 
+# Ensure Python version and dependencies are available
+print_header "Syncing Python and dependencies"
+uv python install >/dev/null 2>&1
+uv sync --frozen >/dev/null 2>&1
+print_status "Environment ready"
+
 # Create necessary directories
 print_header "Creating directories"
 mkdir -p data logs

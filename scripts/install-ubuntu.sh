@@ -59,10 +59,6 @@ sudo apt update
 # Install required system packages
 print_header "Installing system dependencies"
 PACKAGES=(
-    "python3"
-    "python3-pip" 
-    "python3-venv"
-    "python3-dev"
     "git"
     "curl"
     "wget"
@@ -81,19 +77,6 @@ for package in "${PACKAGES[@]}"; do
         sudo apt install -y "$package"
     fi
 done
-
-# Check Python version
-print_header "Checking Python version"
-PYTHON_VERSION=$(python3 --version | cut -d' ' -f2)
-MAJOR=$(echo $PYTHON_VERSION | cut -d'.' -f1)
-MINOR=$(echo $PYTHON_VERSION | cut -d'.' -f2)
-
-if [ "$MAJOR" -eq 3 ] && [ "$MINOR" -ge 13 ]; then
-    print_status "Python $PYTHON_VERSION detected - Compatible!"
-else
-    print_error "Python 3.13+ is required. Found: $PYTHON_VERSION"
-    exit 1
-fi
 
 # Install uv package manager if not already installed
 print_header "Installing uv package manager"
@@ -119,6 +102,12 @@ else
     print_error "Failed to install uv package manager"
     exit 1
 fi
+
+# Install and configure Python using uv
+print_header "Installing Python"
+uv python install
+uv python pin 3.13
+uv venv
 
 # Install project dependencies
 print_header "Installing project dependencies"
@@ -180,7 +169,7 @@ chmod +x scripts/*.sh 2>/dev/null || true
 
 # Run validation
 print_header "Running validation tests"
-if python3 validate.py; then
+if uv run python validate.py; then
     print_status "Validation tests passed!"
 else
     print_warning "Some validation tests failed. Check the output above."
