@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/dunamismax/images/blob/main/python/Python-Discord-Bot-Logo.png" alt="Discord Bot Logo" width="300" />
+  <img src="https://github.com/dunamismax/images/blob/main/discord-bot-framework/discord-bot-framework.png" alt="Discord Bot Framework Logo" width="300" />
 </p>
 
 <div align="center">
