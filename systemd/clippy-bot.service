@@ -1,0 +1,48 @@
+[Unit]
+Description=Discord Bot Framework - Clippy Bot
+Documentation=https://github.com/dunamismax/discord-bot-framework
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/discord-bot-framework
+Environment=PATH=/home/ubuntu/.cargo/bin:/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=/home/ubuntu/discord-bot-framework/.env
+
+# Start the Clippy bot using uv
+ExecStart=/home/ubuntu/.cargo/bin/uv run python -m apps.clippy_bot.main
+ExecReload=/bin/kill -HUP $MAINPID
+
+# Restart policy
+Restart=always
+RestartSec=10
+StartLimitInterval=300
+StartLimitBurst=5
+
+# Resource limits
+MemoryMax=512M
+CPUQuota=50%
+
+# Security settings
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ubuntu/discord-bot-framework/data
+ReadWritePaths=/home/ubuntu/discord-bot-framework/logs
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=clippy-bot
+
+# Process management
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

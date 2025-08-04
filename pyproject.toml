@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "discord-bot-framework"
 version = "0.1.0"
-description = "Discord bot monorepo with Clippy and Music bots"
+description = "Discord bot framework with Clippy and Music bots"
 authors = [
     {name = "dunamismax", email = "dunamismax@tutamail.com"}
 ]

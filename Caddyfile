@@ -1,0 +1,113 @@
+# Discord Bot Framework - Caddy Reverse Proxy Configuration
+# Replace 'your-domain.com' with your actual domain name
+# For local development, use localhost or your server's IP address
+
+# Main domain configuration
+your-domain.com {
+    # Health check endpoint for load balancers
+    handle /health {
+        respond "Discord Bot Framework - All Services Healthy" 200
+    }
+
+    # Clippy bot health and metrics
+    handle /clippy/* {
+        reverse_proxy localhost:8081 {
+            header_up Host {http.reverse_proxy.upstream.hostport}
+            header_up X-Real-IP {http.request.remote}
+            header_up X-Forwarded-For {http.request.remote}
+            header_up X-Forwarded-Proto {http.request.scheme}
+        }
+    }
+
+    # Music bot health and metrics
+    handle /music/* {
+        reverse_proxy localhost:8082 {
+            header_up Host {http.reverse_proxy.upstream.hostport}
+            header_up X-Real-IP {http.request.remote}
+            header_up X-Forwarded-For {http.request.remote}
+            header_up X-Forwarded-Proto {http.request.scheme}
+        }
+    }
+
+    # API endpoints for monitoring
+    handle /api/* {
+        # Route to both bots based on path
+        route /api/clippy/* {
+            reverse_proxy localhost:8081
+        }
+        route /api/music/* {
+            reverse_proxy localhost:8082
+        }
+    }
+
+    # Default route - serve a simple status page
+    handle {
+        respond "Discord Bot Framework - Self-Hosted on Ubuntu" 200
+    }
+
+    # Security headers
+    header {
+        # Enable HSTS
+        Strict-Transport-Security max-age=31536000;
+        # Prevent MIME type sniffing
+        X-Content-Type-Options nosniff
+        # Prevent clickjacking
+        X-Frame-Options DENY
+        # XSS protection
+        X-XSS-Protection "1; mode=block"
+        # Referrer policy
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+
+    # Enable compression
+    encode gzip
+
+    # Logging
+    log {
+        output file /var/log/caddy/discord-bots.log {
+            roll_size 100mb
+            roll_keep 5
+        }
+        format json
+    }
+}
+
+# Development/Local configuration (optional)
+# Uncomment and modify for local development
+# localhost:80 {
+#     handle /health {
+#         respond "Discord Bot Framework - Local Development" 200
+#     }
+#     
+#     handle /clippy/* {
+#         reverse_proxy localhost:8081
+#     }
+#     
+#     handle /music/* {
+#         reverse_proxy localhost:8082
+#     }
+#     
+#     handle {
+#         respond "Discord Bot Framework - Local Development Environment" 200
+#     }
+# }
+
+# WSL2 specific configuration (if needed)
+# Replace with your WSL2 IP if accessing from Windows host
+# 172.16.0.0/12 {
+#     handle /health {
+#         respond "Discord Bot Framework - WSL2 Environment" 200
+#     }
+#     
+#     handle /clippy/* {
+#         reverse_proxy localhost:8081
+#     }
+#     
+#     handle /music/* {
+#         reverse_proxy localhost:8082
+#     }
+#     
+#     handle {
+#         respond "Discord Bot Framework - WSL2 Self-Hosted" 200
+#     }
+# }

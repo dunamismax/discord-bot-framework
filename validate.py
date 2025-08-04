@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validation script for the Discord bot monorepo."""
+"""Validation script for the Discord bot framework."""
 
 import sys
 import os
@@ -63,7 +63,7 @@ def main():
     
     all_passed = True
     
-    print("🔍 Validating Discord Bot Monorepo...")
+    print("🔍 Validating Discord Bot Framework...")
     print("=" * 50)
     
     for file_path in files_to_check:
@@ -93,8 +93,7 @@ def main():
     config_files = [
         project_root / "pyproject.toml",
         project_root / "config.example.json",
-        project_root / "docker-compose.yml",
-        project_root / "Dockerfile",
+        project_root / "Caddyfile",
     ]
     
     print("📄 Checking configuration files...")
