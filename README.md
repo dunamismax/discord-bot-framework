@@ -20,12 +20,6 @@ Designed for self-hosting on Ubuntu Linux with enterprise-grade features
 </div>
 
 <p align="center">
-  <a href="https://discord-bots.dunamismax.com/">
-    <img src="https://img.shields.io/badge/Live-Demo-5865F2.svg?style=for-the-badge&logo=discord&logoColor=white" alt="Live Demo">
-  </a>
-</p>
-
-<p align="center">
   <a href="https://python.org/"><img src="https://img.shields.io/badge/Python-3.13+-5865F2.svg?logo=python&logoColor=white&style=for-the-badge" alt="Python Version"></a>
   <a href="https://docs.pycord.dev/"><img src="https://img.shields.io/badge/py--cord-2.6.1+-5865F2.svg?logo=discord&logoColor=white&style=for-the-badge" alt="py-cord Version"></a>
   <a href="https://docs.astral.sh/uv/"><img src="https://img.shields.io/badge/uv-Package_Manager-5865F2.svg?style=for-the-badge&logoColor=white" alt="uv"></a>
