@@ -5,8 +5,11 @@ import aiohttp
 from aiohttp import web
 import json
 import logging
+import psutil
+import time
 from datetime import datetime
 from typing import Dict, Any
+from collections import defaultdict
 
 
 class HealthCheckServer:
@@ -20,10 +23,15 @@ class HealthCheckServer:
         self.site = None
         self.logger = logging.getLogger(__name__)
         
+        # Rate limiting
+        self.rate_limits = defaultdict(list)
+        self.rate_limit_window = 60  # 60 seconds
+        self.rate_limit_max_requests = 30  # 30 requests per minute per IP
+        
         # Set up routes
-        self.app.router.add_get('/health', self.health_check)
-        self.app.router.add_get('/metrics', self.metrics)
-        self.app.router.add_get('/status', self.status)
+        self.app.router.add_get('/health', self.rate_limited(self.health_check))
+        self.app.router.add_get('/metrics', self.rate_limited(self.metrics))
+        self.app.router.add_get('/status', self.rate_limited(self.status))
     
     async def start(self):
         """Start the health check server."""
@@ -45,6 +53,46 @@ class HealthCheckServer:
         if self.runner:
             await self.runner.cleanup()
         self.logger.info("Health check server stopped")
+    
+    def rate_limited(self, handler):
+        """Rate limiting decorator for endpoints."""
+        async def wrapper(request):
+            # Get client IP
+            client_ip = request.remote
+            if 'X-Forwarded-For' in request.headers:
+                client_ip = request.headers['X-Forwarded-For'].split(',')[0].strip()
+            elif 'X-Real-IP' in request.headers:
+                client_ip = request.headers['X-Real-IP']
+            
+            current_time = time.time()
+            
+            # Clean old requests outside the window
+            self.rate_limits[client_ip] = [
+                req_time for req_time in self.rate_limits[client_ip]
+                if current_time - req_time < self.rate_limit_window
+            ]
+            
+            # Check if rate limit exceeded
+            if len(self.rate_limits[client_ip]) >= self.rate_limit_max_requests:
+                self.logger.warning(f"Rate limit exceeded for IP: {client_ip}")
+                return web.json_response(
+                    {
+                        'error': 'Rate limit exceeded',
+                        'limit': self.rate_limit_max_requests,
+                        'window_seconds': self.rate_limit_window,
+                        'retry_after': self.rate_limit_window
+                    },
+                    status=429,
+                    headers={'Retry-After': str(self.rate_limit_window)}
+                )
+            
+            # Add current request to rate limit tracking
+            self.rate_limits[client_ip].append(current_time)
+            
+            # Call the actual handler
+            return await handler(request)
+        
+        return wrapper
     
     async def health_check(self, request):
         """Basic health check endpoint."""
@@ -79,12 +127,27 @@ class HealthCheckServer:
                 except Exception as e:
                     self.logger.error(f"Error getting command stats: {e}")
             
+            # System performance metrics
+            process = psutil.Process()
+            memory_info = process.memory_info()
+            cpu_percent = process.cpu_percent()
+            
+            # System-wide metrics
+            system_memory = psutil.virtual_memory()
+            system_disk = psutil.disk_usage('/')
+            
+            # Calculate uptime
+            uptime_seconds = None
+            if hasattr(self.bot, 'start_time'):
+                uptime_seconds = (datetime.utcnow() - self.bot.start_time).total_seconds()
+            
             metrics_data = {
                 'bot_info': {
                     'name': self.bot.__class__.__name__,
                     'user_id': self.bot.user.id if self.bot.user else None,
                     'username': str(self.bot.user) if self.bot.user else None,
-                    'start_time': self.bot.start_time.isoformat() if hasattr(self.bot, 'start_time') else None
+                    'start_time': self.bot.start_time.isoformat() if hasattr(self.bot, 'start_time') else None,
+                    'uptime_seconds': uptime_seconds
                 },
                 'status': {
                     'ready': self.bot.is_ready(),
@@ -99,6 +162,23 @@ class HealthCheckServer:
                 'commands': {
                     'total_application_commands': len(list(self.bot.walk_application_commands())),
                     'top_commands_24h': command_stats
+                },
+                'performance': {
+                    'process': {
+                        'cpu_percent': cpu_percent,
+                        'memory_mb': round(memory_info.rss / 1024 / 1024, 2),
+                        'memory_percent': round(memory_info.rss / system_memory.total * 100, 2),
+                        'threads': process.num_threads(),
+                        'open_files': len(process.open_files()) if hasattr(process, 'open_files') else 0
+                    },
+                    'system': {
+                        'cpu_percent': psutil.cpu_percent(interval=1),
+                        'memory_percent': system_memory.percent,
+                        'memory_available_mb': round(system_memory.available / 1024 / 1024, 2),
+                        'disk_percent': system_disk.percent,
+                        'disk_free_gb': round(system_disk.free / 1024 / 1024 / 1024, 2),
+                        'load_average': psutil.getloadavg() if hasattr(psutil, 'getloadavg') else None
+                    }
                 },
                 'timestamp': datetime.utcnow().isoformat()
             }

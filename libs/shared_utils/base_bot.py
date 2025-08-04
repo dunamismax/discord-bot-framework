@@ -7,6 +7,7 @@ from datetime import datetime
 import discord
 from discord.ext import commands
 from typing import Optional, List, Dict, Any
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from .config_loader import BotConfig
 
@@ -29,6 +30,9 @@ class BaseBot(commands.Bot):
         self.config = config
         self.start_time = datetime.utcnow()
         self.setup_logging()
+        
+        # User command cooldowns
+        self.user_cooldowns: Dict[int, Dict[str, datetime]] = {}
     
     def setup_logging(self):
         """Set up comprehensive logging for the bot."""
@@ -138,6 +142,78 @@ class BaseBot(commands.Bot):
                 self.logger.info(f"Loaded cog: {cog_module}")
             except Exception as e:
                 self.logger.error(f"Failed to load cog {cog_module}: {e}")
+    
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type((discord.HTTPException, discord.ConnectionClosed))
+    )
+    async def safe_api_call(self, func, *args, **kwargs):
+        """Safely execute Discord API calls with retry logic."""
+        try:
+            return await func(*args, **kwargs)
+        except discord.RateLimited as e:
+            self.logger.warning(f"Rate limited, retrying after {e.retry_after} seconds")
+            raise
+        except discord.Forbidden as e:
+            self.logger.error(f"Forbidden action: {e}")
+            raise
+        except discord.NotFound as e:
+            self.logger.error(f"Resource not found: {e}")
+            raise
+        except Exception as e:
+            self.logger.error(f"Unexpected error in API call: {e}")
+            raise
+    
+    def is_user_on_cooldown(self, user_id: int, command_name: str) -> bool:
+        """Check if a user is on cooldown for a specific command."""
+        if user_id not in self.user_cooldowns:
+            return False
+        
+        if command_name not in self.user_cooldowns[user_id]:
+            return False
+        
+        last_used = self.user_cooldowns[user_id][command_name]
+        cooldown_duration = self.config.command_cooldown
+        
+        return (datetime.utcnow() - last_used).total_seconds() < cooldown_duration
+    
+    def set_user_cooldown(self, user_id: int, command_name: str):
+        """Set cooldown for a user and command."""
+        if user_id not in self.user_cooldowns:
+            self.user_cooldowns[user_id] = {}
+        
+        self.user_cooldowns[user_id][command_name] = datetime.utcnow()
+    
+    def get_user_cooldown_remaining(self, user_id: int, command_name: str) -> float:
+        """Get remaining cooldown time for a user and command."""
+        if not self.is_user_on_cooldown(user_id, command_name):
+            return 0.0
+        
+        last_used = self.user_cooldowns[user_id][command_name]
+        cooldown_duration = self.config.command_cooldown
+        elapsed = (datetime.utcnow() - last_used).total_seconds()
+        
+        return max(0.0, cooldown_duration - elapsed)
+    
+    def validate_input(self, input_str: str, max_length: int = 2000, allow_empty: bool = False) -> str:
+        """Validate and sanitize user input."""
+        if not allow_empty and not input_str.strip():
+            raise ValueError("Input cannot be empty")
+        
+        if len(input_str) > max_length:
+            raise ValueError(f"Input too long (max {max_length} characters)")
+        
+        # Remove potential harmful characters
+        sanitized = input_str.strip()
+        
+        # Basic XSS prevention (remove script tags, etc.)
+        dangerous_patterns = ['<script', '</script', 'javascript:', 'data:', 'vbscript:']
+        for pattern in dangerous_patterns:
+            if pattern.lower() in sanitized.lower():
+                raise ValueError("Input contains potentially dangerous content")
+        
+        return sanitized
     
     def run_bot(self):
         """Run the bot with the configured token."""

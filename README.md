@@ -16,10 +16,8 @@
 
 <div align="center">
 
-<p style="color: #5865F2; font-size: 18px; font-weight: 500;">
-A comprehensive framework for building modern Discord bots with Python<br>
-Designed for self-hosting on Ubuntu Linux (native or WSL) with Caddy reverse proxy
-</p>
+A production-ready framework for building modern Discord bots with Python
+Designed for self-hosting on Ubuntu Linux with enterprise-grade features
 
 </div>
 
@@ -29,430 +27,322 @@ Designed for self-hosting on Ubuntu Linux (native or WSL) with Caddy reverse pro
   </a>
 </p>
 
-<details>
-<summary style="cursor: pointer; padding: 12px; background: linear-gradient(135deg, #5865F2, #404eed); color: white; border-radius: 8px; text-align: center; font-weight: bold; margin: 8px 0; list-style: none;">
-  Click to explore the bots
-</summary>
-<div style="margin-top: 16px;">
-<p align="center">
-  <strong>Clippy Bot:</strong> <code>python -m apps.clippy_bot.main</code><br>
-  <strong>Music Bot:</strong> <code>python -m apps.music_bot.main</code><br>
-  <strong>Start Services:</strong> <code>./scripts/start-all.sh</code><br>
-  <strong>Health Checks:</strong> <code>curl http://localhost:8081/health</code><br>
-  <strong>Run Tests:</strong> <code>python validate.py</code>
-</p>
-</div>
-</details>
-
----
-
 <p align="center">
   <a href="https://python.org/"><img src="https://img.shields.io/badge/Python-3.8+-5865F2.svg?logo=python&logoColor=white&style=for-the-badge" alt="Python Version"></a>
-  <a href="https://docs.pycord.dev/"><img src="https://img.shields.io/badge/py--cord-2.4+-5865F2.svg?logo=discord&logoColor=white&style=for-the-badge" alt="py-cord Version"></a>
+  <a href="https://docs.pycord.dev/"><img src="https://img.shields.io/badge/py--cord-2.6.1+-5865F2.svg?logo=discord&logoColor=white&style=for-the-badge" alt="py-cord Version"></a>
   <a href="https://docs.astral.sh/uv/"><img src="https://img.shields.io/badge/uv-Package_Manager-5865F2.svg?style=for-the-badge&logoColor=white" alt="uv"></a>
   <a href="https://sqlite.org/"><img src="https://img.shields.io/badge/SQLite-3.x-5865F2.svg?logo=sqlite&logoColor=white&style=for-the-badge" alt="SQLite"></a>
-</p>
-
-<p align="center">
-  <a href="https://docs.astral.sh/ruff/"><img src="https://img.shields.io/badge/Ruff-Linting-5865F2.svg?style=for-the-badge&logoColor=white" alt="Ruff"></a>
-  <a href="https://caddyserver.com/"><img src="https://img.shields.io/badge/Caddy-Reverse_Proxy-5865F2.svg?style=for-the-badge&logoColor=white" alt="Caddy"></a>
-  <a href="https://ubuntu.com/"><img src="https://img.shields.io/badge/Ubuntu-Self_Hosted-5865F2.svg?logo=ubuntu&logoColor=white&style=for-the-badge" alt="Ubuntu"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-5865F2.svg?style=for-the-badge&logoColor=white" alt="MIT License"></a>
 </p>
 
 ---
 
+## What Makes This Different
+
+This framework goes beyond basic Discord bot tutorials. Built with production deployment in mind, it includes enterprise-grade monitoring, security hardening, and modern Discord API integration. The architecture uses py-cord 2.6.1 with async/await patterns, comprehensive error handling with automatic retries, and a sophisticated health monitoring system that tracks both system performance and bot metrics.
+
+The framework implements user-level cooldowns, input validation with XSS prevention, and rate limiting to protect against abuse. Database operations use SQLite with automatic validation, and the entire stack is designed for self-hosting with Caddy providing automatic HTTPS and security headers including Content Security Policy and Permissions Policy.
+
 ## Core Features
 
-<table align="center">
-<tr>
-<td align="center" width="25%">
-<img src="https://img.shields.io/badge/-Ubuntu_Native-5865F2?style=for-the-badge&logo=ubuntu&logoColor=white" alt="Ubuntu Native"><br>
-<sub><b>Ubuntu Linux<br>WSL Compatible</b></sub>
-</td>
-<td align="center" width="25%">
-<img src="https://img.shields.io/badge/-Caddy_Proxy-5865F2?style=for-the-badge&logo=caddy&logoColor=white" alt="Caddy Proxy"><br>
-<sub><b>Automatic HTTPS<br>Reverse Proxy</b></sub>
-</td>
-<td align="center" width="25%">
-<img src="https://img.shields.io/badge/-Self_Hosted-5865F2?style=for-the-badge&logo=server&logoColor=white" alt="Self Hosted"><br>
-<sub><b>Full Control<br>Privacy First</b></sub>
-</td>
-<td align="center" width="25%">
-<img src="https://img.shields.io/badge/-Health_Monitoring-5865F2?style=for-the-badge&logo=heart&logoColor=white" alt="Health Monitoring"><br>
-<sub><b>HTTP Endpoints<br>Real-time Metrics</b></sub>
-</td>
-</tr>
-</table>
+**Production-Ready Bots**
 
-### Bot Features & Capabilities
+- **Advanced Music Bot** - YouTube integration with yt-dlp, database-backed playlist management, auto-disconnect when alone, and high-quality audio processing
+- **Unhinged Clippy Bot** - Interactive polls, Discord UI buttons, 30+ contextual responses, and modern meme integration with smart permission detection
 
-- **Advanced music bot** with YouTube integration, playlist management, and queue control
-- **Unhinged Clippy bot** with chaotic responses and nostalgic Microsoft Office humor
-- **Database persistence** for playlists, user data, and command analytics
-- **Comprehensive error handling** with user-friendly messages and detailed logging
-- **Health monitoring** with HTTP endpoints for uptime and performance metrics
-- **Slash command integration** with modern Discord API features
+**Enterprise Infrastructure**
 
-### Self-Hosting Experience
+- **System Monitoring** - Real-time CPU, memory, and disk metrics with process-level tracking and uptime analytics
+- **Security Hardening** - Rate limiting (30 req/min per IP), input sanitization, XSS prevention, and comprehensive security headers
+- **Error Resilience** - Exponential backoff retry mechanisms for Discord API calls, user-friendly error messages, and detailed logging
+- **Configuration Validation** - Automatic validation of tokens, ports, limits, and file formats with descriptive error messages
 
-- **Ubuntu Linux native** with full WSL2 compatibility for Windows users
-- **Caddy reverse proxy** with automatic HTTPS and SSL certificate management
-- **Systemd service integration** for automatic startup and process management
-- **Code quality tools** with Ruff for formatting, linting, and import sorting
-- **Comprehensive testing** with validation scripts and unit tests
+**Modern Discord Integration**
 
-### Production Features
-
-- **Systemd services** for automatic startup and crash recovery
-- **Health check endpoints** for monitoring and load balancer integration
-- **Configuration management** supporting environment variables and JSON configs
-- **Logging and analytics** with command usage tracking and performance metrics
-
----
-
-<p align="center">
-  <img src="https://github.com/dunamismax/images/blob/main/python/python-discord-banner.jpg" alt="Python Discord Banner" width="500" />
-</p>
-
-## Project Structure
-
-```sh
-discord-bot-framework/
-├── apps/
-│   ├── clippy_bot/            # Unhinged Microsoft Clippy bot
-│   │   ├── cogs/
-│   │   │   └── unhinged_responses.py
-│   │   └── main.py
-│   └── music_bot/             # YouTube music bot with playlists
-│       ├── cogs/
-│       │   └── music_player.py
-│       └── main.py
-├── libs/
-│   └── shared_utils/          # Shared utilities and base classes
-│       ├── base_bot.py        # Enhanced bot base class
-│       ├── config_loader.py   # Configuration management
-│       ├── database.py        # SQLite database utilities
-│       ├── health_check.py    # HTTP health monitoring
-│       └── help_system.py     # Universal help commands
-├── scripts/
-│   ├── start-all.sh          # Start all bots
-│   ├── stop-all.sh           # Stop all bots
-│   └── install-ubuntu.sh     # Ubuntu installation script
-├── systemd/
-│   ├── clippy-bot.service    # Clippy bot systemd service
-│   ├── music-bot.service     # Music bot systemd service
-│   └── install-services.sh   # Service installation script
-├── tests/                     # Comprehensive test suite
-├── Caddyfile                  # Caddy reverse proxy config
-└── validate.py               # Code validation script
-```
-
-## Documentation
-
-**Guides:** [Setup](docs/SETUP.md) - [Ubuntu Installation](docs/UBUNTU.md) - [WSL Setup](docs/WSL.md) - [Caddy Configuration](docs/CADDY.md)
-
-**Resources:** [py-cord Docs](https://docs.pycord.dev/) - [Discord Developer Portal](https://discord.com/developers/docs) - [SQLite Docs](https://sqlite.org/docs.html) - [Caddy Docs](https://caddyserver.com/docs/)
-
----
+- **Latest py-cord 2.6.1** - Slash commands, interactive buttons, reaction polls, rich embeds, and ephemeral messages
+- **Smart Cooldowns** - Per-user, per-command cooldowns with remaining time display and automatic cleanup
+- **Database Analytics** - Command usage tracking, user engagement metrics, and playlist analytics
 
 ## Quick Start
 
-### Ubuntu Linux / WSL2 Installation
+### Installation (Ubuntu/WSL)
 
 ```bash
-# Update system packages
+# System setup
 sudo apt update && sudo apt upgrade -y
+sudo apt install python3 python3-pip git curl ffmpeg -y
 
-# Install Python 3.8+ and required packages
-sudo apt install python3 python3-pip python3-venv git curl -y
-
-# Install FFmpeg for music bot
-sudo apt install ffmpeg -y
-
-# Install uv package manager
+# Install uv package manager (ultra-fast Python package management)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 source ~/.bashrc
 
 # Clone and setup
 git clone https://github.com/dunamismax/discord-bot-framework.git
 cd discord-bot-framework
-
-# Install dependencies
 uv sync --all-extras
 
-# Configure bot tokens
+# Configure bot tokens (create applications at Discord Developer Portal)
 cp .env.example .env
 # Edit .env with your Discord bot tokens
 
-# Run installation script (Ubuntu/WSL)
-chmod +x scripts/install-ubuntu.sh
-./scripts/install-ubuntu.sh
-
-# Start bots manually
+# Start bots
 ./scripts/start-all.sh
-
-# Or install as systemd services
-sudo ./systemd/install-services.sh
 
 # Validate installation
 python validate.py
-
-# Check health endpoints
-curl http://localhost:8081/health  # Clippy bot health
-curl http://localhost:8082/health  # Music bot health
 ```
 
-### Caddy Reverse Proxy Setup
+### Production Deployment
+
+The framework includes systemd service files for professional deployment with automatic startup, crash recovery, and proper logging integration.
 
 ```bash
-# Install Caddy (Ubuntu/Debian)
+# Install as systemd services
+sudo ./systemd/install-services.sh
+
+# Install Caddy reverse proxy for automatic HTTPS
 sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https
 curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
 curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
 sudo apt update && sudo apt install caddy
 
-# Copy Caddyfile configuration
+# Configure and start Caddy
 sudo cp Caddyfile /etc/caddy/Caddyfile
-
-# Edit domain configuration
-sudo nano /etc/caddy/Caddyfile
-
-# Start Caddy service
-sudo systemctl enable caddy
-sudo systemctl start caddy
-sudo systemctl status caddy
+sudo nano /etc/caddy/Caddyfile  # Edit domain configuration
+sudo systemctl enable caddy && sudo systemctl start caddy
 ```
 
-<div align="center">
+### Health Check Endpoints
 
-**Clippy Bot:** Chaotic responses and wisdom - **Music Bot:** YouTube playlists and queue management
-
-> **Note:** Both bots require Discord bot tokens. Create applications at [Discord Developer Portal](https://discord.com/developers/applications)
-
-<img src="https://img.shields.io/badge/Status-Production_Ready-5865F2?style=for-the-badge&logoColor=white" alt="Production Ready">
-<img src="https://img.shields.io/badge/Deployment-Ubuntu_Optimized-5865F2?style=for-the-badge&logoColor=white" alt="Ubuntu Optimized">
-
-</div>
-
----
-
-## Development & Build
+The framework provides comprehensive monitoring endpoints that work with load balancers and monitoring systems:
 
 ```bash
-# Development
-uv sync --all-extras             # Install all dependencies
-python validate.py               # Validate code syntax
-uv run ruff check .              # Run linting
-uv run ruff format .             # Format code
-
-# Testing
-python -m pytest tests/          # Run test suite
-python validate.py               # Syntax validation
-
-# Service management
-sudo systemctl start clippy-bot  # Start Clippy bot
-sudo systemctl start music-bot   # Start Music bot
-sudo systemctl status clippy-bot # Check status
-sudo journalctl -u clippy-bot -f # View logs
-
-# Manual bot management
-./scripts/start-all.sh           # Start all bots
-./scripts/stop-all.sh            # Stop all bots
+curl http://localhost:8081/health   # Basic health check
+curl http://localhost:8081/metrics  # Detailed system metrics (CPU, memory, disk, bot stats)
+curl http://localhost:8081/status   # Simple OK/NOT OK for load balancers
 ```
 
----
+## Project Architecture
 
-## Service Management
+```
+discord-bot-framework/
+├── apps/
+│   ├── clippy_bot/              # Chaotic Microsoft Clippy recreation
+│   │   ├── cogs/unhinged_responses.py    # Interactive commands and UI components
+│   │   └── main.py              # Bot initialization with database integration
+│   └── music_bot/               # YouTube music bot with playlists
+│       ├── cogs/music_player.py          # Queue management and playback control
+│       └── main.py              # Bot initialization with voice state handling
+├── libs/shared_utils/           # Framework core components
+│   ├── base_bot.py             # Enhanced bot class with retry logic and cooldowns
+│   ├── config_loader.py        # Configuration with automatic validation
+│   ├── database.py             # SQLite operations with connection pooling
+│   ├── health_check.py         # HTTP server with rate limiting and metrics
+│   └── help_system.py          # Universal help command system
+├── scripts/                     # Management automation
+├── systemd/                     # Production service configurations
+├── tests/                       # Integration and unit test suite
+├── Caddyfile                    # Reverse proxy with security headers
+└── validate.py                  # Code validation and syntax checking
+```
 
-### Systemd Services
+## Bot Applications
+
+### Clippy Bot Features
+
+The Clippy bot goes beyond simple responses with modern Discord UI integration and intelligent behavior patterns.
+
+**Interactive Commands:**
+
+- `/clippy` - On-demand chaotic assistance with user cooldowns
+- `/clippy_wisdom` - Questionable life advice with personality
+- `/clippy_poll` - Creates polls with Clippy's chaotic answer options
+- `/clippy_help` - Interactive help with Discord UI buttons ("More Chaos", "I Regret This")
+
+**Smart Behavior:**
+
+- Random responses every 15-45 minutes with permission checking
+- 3% chance to respond to any message with contextual advice
+- 30+ unique responses inspired by 2024-2025 internet culture
+- Input validation prevents abuse and dangerous content
+
+### Music Bot Features
+
+Built for reliability and user experience with comprehensive playlist management and audio optimization.
+
+**Playback Control:**
+
+- `/play` - YouTube URL or search query support with error handling
+- `/pause`, `/resume`, `/skip`, `/stop` - All with visual feedback and confirmation
+- Auto-disconnect when alone in voice channel (configurable timeout)
+- High-quality audio processing with FFmpeg optimization
+
+**Playlist System:**
+
+- `/playlist create/list/play/add/remove` - Full CRUD operations
+- Database persistence with automatic backup
+- User-specific playlists with ownership validation
+- Configurable size limits (default: 100 songs, max: 1000)
+
+**Advanced Features:**
+
+- 5-minute inactivity timeout with graceful disconnect
+- Rich embed displays with song information and duration
+- Network error handling with automatic retries
+- Queue management with visual feedback
+
+## Configuration System
+
+The framework supports both environment variables and JSON configuration with automatic validation.
+
+**Environment Variables:**
+
+```env
+# Clippy Bot Configuration
+CLIPPY_BOT_TOKEN=your_bot_token_here
+CLIPPY_GUILD_ID=guild_id_for_development_testing
+CLIPPY_DEBUG=false
+CLIPPY_HEALTH_CHECK_PORT=8081
+
+# Music Bot Configuration
+MUSIC_BOT_TOKEN=your_bot_token_here
+MUSIC_GUILD_ID=guild_id_for_development_testing
+MUSIC_DEBUG=false
+MUSIC_MAX_PLAYLIST_SIZE=100
+MUSIC_AUTO_DISCONNECT_TIMEOUT=300
+MUSIC_HEALTH_CHECK_PORT=8082
+```
+
+**JSON Configuration Alternative:**
+
+```json
+{
+  "clippy": {
+    "command_prefix": "!",
+    "debug": false,
+    "health_check_port": 8081,
+    "command_cooldown": 1.0
+  },
+  "music": {
+    "max_playlist_size": 100,
+    "max_queue_size": 50,
+    "auto_disconnect_timeout": 300,
+    "health_check_port": 8082,
+    "allowed_file_formats": ["mp3", "mp4", "webm", "ogg"],
+    "max_song_duration": 3600
+  }
+}
+```
+
+The configuration system validates token formats, port ranges, file limits, and provides descriptive error messages for common mistakes.
+
+## Development & Service Management
+
+**Development Workflow:**
 
 ```bash
-# Install services
-sudo ./systemd/install-services.sh
+uv sync --all-extras             # Install all dependencies with extras
+python validate.py               # Syntax validation and import checking
+uv run ruff check .              # Code linting with modern Python standards
+uv run ruff format .             # Automatic code formatting
+python -m pytest tests/          # Run integration and unit tests
+```
 
-# Service commands
+**Service Management:**
+
+```bash
+# Systemd services (production)
 sudo systemctl start clippy-bot music-bot
 sudo systemctl stop clippy-bot music-bot
-sudo systemctl restart clippy-bot music-bot
-sudo systemctl status clippy-bot music-bot
+sudo systemctl enable clippy-bot music-bot    # Auto-start on boot
+sudo journalctl -u clippy-bot -f              # Real-time log viewing
 
-# Enable auto-start on boot
-sudo systemctl enable clippy-bot music-bot
-
-# View logs
-sudo journalctl -u clippy-bot -f
-sudo journalctl -u music-bot -f
-
-# Service status
-systemctl list-units --type=service | grep bot
+# Manual management (development)
+./scripts/start-all.sh           # Start all bots with proper environment
+./scripts/stop-all.sh            # Graceful shutdown with cleanup
 ```
 
-**Architecture:** Caddy Reverse Proxy → Python Bots → SQLite Database → Discord API
-
----
-
-<p align="center">
-  <img src="https://github.com/dunamismax/images/blob/main/python/Python-logo.png" alt="Python Logo" width="200" />
-</p>
-
-## Technology Stack
+## Technology Stack & Architecture
 
 <table align="center">
 <tr>
 <td align="center">
 <img src="https://img.shields.io/badge/Language-Python_3.8+-5865F2?style=for-the-badge&logo=python&logoColor=white" alt="Python"><br>
-<sub>Modern Python with async/await</sub>
+<sub>Modern async/await with type hints</sub>
 </td>
 <td align="center">
-<img src="https://img.shields.io/badge/Discord-py--cord_2.4-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="py-cord"><br>
-<sub>Modern Discord API library</sub>
+<img src="https://img.shields.io/badge/Discord-py--cord_2.6.1-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="py-cord"><br>
+<sub>Latest Discord API with UI components</sub>
 </td>
 <td align="center">
 <img src="https://img.shields.io/badge/Database-SQLite_3-5865F2?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite"><br>
-<sub>Embedded relational database</sub>
+<sub>ACID compliance with WAL mode</sub>
 </td>
 </tr>
 <tr>
 <td align="center">
 <img src="https://img.shields.io/badge/Package-uv-5865F2?style=for-the-badge&logoColor=white" alt="uv"><br>
-<sub>Ultra-fast Python package manager</sub>
+<sub>Rust-powered package management</sub>
 </td>
 <td align="center">
 <img src="https://img.shields.io/badge/Proxy-Caddy-5865F2?style=for-the-badge&logoColor=white" alt="Caddy"><br>
-<sub>Automatic HTTPS reverse proxy</sub>
+<sub>HTTP/2, HTTP/3, automatic HTTPS</sub>
 </td>
 <td align="center">
 <img src="https://img.shields.io/badge/OS-Ubuntu_Linux-5865F2?style=for-the-badge&logo=ubuntu&logoColor=white" alt="Ubuntu"><br>
-<sub>Self-hosted on Ubuntu/WSL</sub>
+<sub>LTS stability with WSL2 support</sub>
 </td>
 </tr>
 </table>
 
-**Stack highlights:** Modern Python - Discord slash commands - Database persistence - Health monitoring - Self-hosted
+**Data Flow:** Discord API ↔ py-cord Bot ↔ SQLite Database ↔ Health Monitoring ↔ Caddy Proxy
 
-## Philosophy
+The architecture uses dependency injection for configuration, database connection pooling for performance, and event-driven design for scalability. Error handling includes circuit breakers for external services and graceful degradation when components fail.
 
-### Why Self-Hosting?
+## Security & Performance
 
-1. **Privacy & Control** - Your data stays on your server, complete control over deployment
-2. **Cost Effective** - No monthly cloud fees, runs on minimal hardware
-3. **Learning Experience** - Understand the full stack from bot code to system administration
-4. **Customization** - Modify and extend without platform restrictions
+**Security Measures:**
 
-### Why Ubuntu/WSL?
+- Content Security Policy and Permissions Policy headers via Caddy
+- Input validation with XSS prevention and content sanitization
+- Rate limiting on health endpoints (30 requests/minute per IP)
+- User cooldowns to prevent command spam and abuse
+- Secure token management with environment variable isolation
 
-- **Ubuntu LTS** - Stable, well-documented, excellent Python ecosystem
-- **WSL2 Support** - Windows users get full Linux compatibility
-- **Systemd Integration** - Professional service management and auto-restart
-- **Package Management** - Easy installation of dependencies and system tools
+**Performance Optimizations:**
 
-### Why Caddy?
+- Connection pooling for database operations
+- Async/await throughout for non-blocking I/O
+- Memory-efficient queue management with automatic cleanup
+- System monitoring with CPU, memory, and disk tracking
+- Exponential backoff for API retries to prevent rate limiting
 
-- **Automatic HTTPS** - Zero-configuration SSL certificates via Let's Encrypt
-- **Simple Configuration** - Human-readable Caddyfile syntax
-- **Performance** - Fast, efficient reverse proxy with HTTP/2 and HTTP/3 support
-- **Security** - Built-in security features and automatic security headers
+## Self-Hosting Philosophy
 
-### Development Philosophy
+**Why Choose Self-Hosting:**
 
-- **Error Resilience** - Comprehensive error handling with user-friendly messages
-- **User Experience** - Intuitive slash commands with helpful feedback
-- **Maintainability** - Clean architecture with shared utilities and consistent patterns
-- **Observability** - Health endpoints, logging, and command analytics
-- **Modern Standards** - Python 3.8+, async/await, type hints, and contemporary patterns
+This framework embraces self-hosting for privacy, control, and learning. Your bot data stays on your infrastructure, you pay no monthly cloud fees, and you gain deep understanding of the entire technology stack. The Ubuntu/WSL design provides stability through LTS releases while maintaining compatibility with Windows development environments.
 
-## Bot Applications
+Caddy handles the complexity of HTTPS certificates and security headers automatically, while systemd provides professional service management with logging integration. The result is a production-ready deployment that rivals cloud-hosted solutions while remaining fully under your control.
 
-### Unhinged Clippy Bot
+**Technical Benefits:**
 
-A chaotic recreation of Microsoft Clippy with modern internet humor and Discord integration.
+- **Ubuntu LTS** - Long-term stability with excellent Python ecosystem
+- **WSL2 Integration** - Native Linux experience on Windows with full compatibility
+- **Systemd Management** - Professional service lifecycle with automatic restart policies
+- **Caddy Automation** - Zero-configuration HTTPS with Let's Encrypt integration
 
-**Features:**
+## Documentation & Resources
 
-- Random unhinged responses every 15-45 minutes
-- 3% chance to respond to any message with chaotic advice
-- `/clippy` command for on-demand unhelpful assistance
-- `/clippy_wisdom` for questionable life advice
-- 30+ unique responses inspired by 2024-2025 memes
-- Smart channel permission detection
-- Integrated help system and error handling
+**Configuration Reference:**
 
-### Advanced Music Bot
+- [config.example.json](config.example.json) - Complete configuration options with validation rules
 
-A comprehensive YouTube music bot with playlist management and advanced queue features.
+**External Documentation:**
 
-**Features:**
-
-- **Music Playback**: `/play` with YouTube URL or search query support
-- **Queue Management**: `/pause`, `/resume`, `/skip`, `/stop` with visual feedback
-- **Playlist System**: Create, manage, and play custom playlists
-  - `/playlist create` - Create new playlists
-  - `/playlist list` - View your playlists
-  - `/playlist play` - Play entire playlists
-  - `/playlist add` - Add current song to playlist
-  - `/playlist remove` - Remove songs from playlists
-- **Advanced Features**:
-  - Auto-disconnect when alone in voice channel
-  - 5-minute inactivity timeout
-  - Database persistence for playlists
-  - Rich embed displays with song information
-  - Error handling for invalid URLs and network issues
-  - High-quality audio with FFmpeg optimization
-
-## Production Features
-
-**Health Monitoring & Analytics**
-
-Both bots include comprehensive monitoring and analytics:
-
-- **HTTP Health Endpoints** - `/health`, `/metrics`, `/status` for monitoring
-- **Command Analytics** - Track usage patterns and popular commands
-- **Real-time Metrics** - Bot status, latency, guild count, and performance data
-- **Database Analytics** - Playlist usage, user engagement, and growth metrics
-
-**Systemd Service Management**
-
-Production-ready service management with:
-
-- **Automatic startup** on system boot
-- **Crash recovery** with automatic restart policies
-- **Resource limits** and process isolation
-- **Logging integration** with journald
-- **Service dependencies** and proper shutdown handling
-
-## Configuration
-
-All bots support both environment variables and JSON configuration files:
-
-**Environment Variables:**
-```env
-# Clippy Bot
-CLIPPY_BOT_TOKEN=your_bot_token
-CLIPPY_GUILD_ID=guild_id_for_testing
-CLIPPY_DEBUG=false
-
-# Music Bot  
-MUSIC_BOT_TOKEN=your_bot_token
-MUSIC_GUILD_ID=guild_id_for_testing
-MUSIC_DEBUG=false
-MUSIC_MAX_PLAYLIST_SIZE=100
-MUSIC_AUTO_DISCONNECT_TIMEOUT=300
-```
-
-**JSON Configuration:**
-```json
-{
-  "music": {
-    "max_playlist_size": 100,
-    "max_queue_size": 50,
-    "auto_disconnect_timeout": 300,
-    "health_check_port": 8082
-  }
-}
-```
-
-See [config.example.json](config.example.json) for full configuration options.
+- [py-cord Documentation](https://docs.pycord.dev/) - Modern Discord API library with examples
+- [Discord Developer Portal](https://discord.com/developers/docs) - Official Discord API reference
+- [Caddy Documentation](https://caddyserver.com/docs/) - Web server configuration and security
 
 ## License
 
@@ -461,7 +351,7 @@ See [config.example.json](config.example.json) for full configuration options.
 <img src="https://img.shields.io/badge/License-MIT-5865F2?style=for-the-badge&logo=opensource&logoColor=white" alt="MIT License">
 
 **This project is licensed under the MIT License**
-_Feel free to use, modify, and distribute_
+*Feel free to use, modify, and distribute*
 
 [View License Details](LICENSE)
 
@@ -486,10 +376,6 @@ _Feel free to use, modify, and distribute_
 ---
 
 <p align="center">
-  <strong style="color: #5865F2; font-size: 18px;">Discord Bot Framework</strong><br>
-  <sub style="color: #5865F2;">Modern Python - Discord API - Database Persistence - Playlist Management - Health Monitoring - Ubuntu Self-Hosted - Caddy Reverse Proxy - Production Optimized - Open Source</sub>
-</p>
-
-<p align="center">
-  <img src="https://github.com/dunamismax/images/blob/main/python/python-discord-community.jpg" alt="Python Discord Community" width="500" />
+  <strong>Discord Bot Framework</strong><br>
+  <sub>Production-Ready • Enterprise Security • Modern Python • Self-Hosted • Open Source</sub>
 </p>

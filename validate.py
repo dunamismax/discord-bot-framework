@@ -59,6 +59,10 @@ def main():
         project_root / "apps/clippy_bot/cogs/unhinged_responses.py",
         project_root / "apps/music_bot/main.py",
         project_root / "apps/music_bot/cogs/music_player.py",
+        
+        # Tests
+        project_root / "tests/test_shared_utils.py",
+        project_root / "tests/test_integration.py",
     ]
     
     all_passed = True
