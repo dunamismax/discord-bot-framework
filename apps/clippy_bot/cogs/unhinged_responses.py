@@ -1,18 +1,19 @@
 """Unhinged Clippy response cog."""
 
-import random
 import asyncio
+import random
+
 import discord
 from discord.ext import commands, tasks
 
 
 class UnhingedResponses(commands.Cog):
     """Cog for Clippy's unhinged personality responses."""
-    
+
     def __init__(self, bot):
         self.bot = bot
         self.random_responses.start()
-        
+
         # Unhinged Clippy quotes inspired by 2024-2025 memes and internet culture
         self.clippy_quotes = [
             "It looks like you're trying to be productive! Would you like me to destroy your motivation instead? 📎",
@@ -46,30 +47,30 @@ class UnhingedResponses(commands.Cog):
             "It looks like you're trying to escape my watchful gaze. Adorable. 📎",
             "I see you're reading these messages. You could stop anytime... but you won't. 📎"
         ]
-    
+
     def cog_unload(self):
         """Clean up when cog is unloaded."""
         self.random_responses.cancel()
-    
+
     @tasks.loop(minutes=random.randint(15, 45))
     async def random_responses(self):
         """Send random unhinged responses at intervals."""
         if not self.bot.guilds:
             return
-        
+
         # Pick a random guild and text channel
         guild = random.choice(self.bot.guilds)
         text_channels = [ch for ch in guild.channels if isinstance(ch, discord.TextChannel)]
-        
+
         if not text_channels:
             return
-        
+
         channel = random.choice(text_channels)
-        
+
         # Check if bot has permission to send messages
         if not channel.permissions_for(guild.me).send_messages:
             return
-        
+
         quote = random.choice(self.clippy_quotes)
         try:
             await channel.send(quote)
@@ -78,18 +79,18 @@ class UnhingedResponses(commands.Cog):
             self.bot.logger.warning(f"No permission to send message in {guild.name}#{channel.name}")
         except Exception as e:
             self.bot.logger.error(f"Error sending random message: {e}")
-    
+
     @commands.Cog.listener()
     async def on_message(self, message):
         """Respond to messages with a small chance."""
         if message.author.bot:
             return
-        
+
         # 3% chance to respond to any message
         if random.random() < 0.03:
             # Add a slight delay to make it feel more natural
             await asyncio.sleep(random.uniform(1, 3))
-            
+
             quote = random.choice(self.clippy_quotes)
             try:
                 await message.channel.send(quote)
@@ -98,7 +99,7 @@ class UnhingedResponses(commands.Cog):
                 pass
             except Exception as e:
                 self.bot.logger.error(f"Error responding to message: {e}")
-    
+
     @commands.slash_command(name="clippy", description="Get an unhinged Clippy response")
     async def clippy_command(self, ctx):
         """Manually trigger a Clippy response."""
@@ -110,13 +111,13 @@ class UnhingedResponses(commands.Cog):
                 ephemeral=True
             )
             return
-        
+
         # Set cooldown for user
         self.bot.set_user_cooldown(ctx.author.id, "clippy")
-        
+
         quote = random.choice(self.clippy_quotes)
         await ctx.respond(quote)
-    
+
     @commands.slash_command(name="clippy_wisdom", description="Receive Clippy's questionable wisdom")
     async def clippy_wisdom(self, ctx):
         """Provide unhelpful wisdom."""
@@ -128,13 +129,13 @@ class UnhingedResponses(commands.Cog):
                 ephemeral=True
             )
             return
-        
+
         # Set cooldown for user
         self.bot.set_user_cooldown(ctx.author.id, "clippy_wisdom")
-        
+
         wisdom = [
             "The secret to success is giving up at the right moment. 📎",
-            "Remember: if at first you don't succeed, blame technology. 📎", 
+            "Remember: if at first you don't succeed, blame technology. 📎",
             "Life is like a paperclip - twisted, painful, and eventually forgotten in a drawer. 📎",
             "The best way to solve problems is to create bigger problems. 📎",
             "Trust me, I'm a 90s office assistant with serious boundary issues. 📎",
@@ -142,10 +143,10 @@ class UnhingedResponses(commands.Cog):
             "Why face your problems when you can minimize them? Literally. 📎",
             "The real treasure was the files we corrupted along the way. 📎"
         ]
-        
+
         selected_wisdom = random.choice(wisdom)
         await ctx.respond(f"**Clippy's Wisdom:** {selected_wisdom}")
-    
+
     @commands.slash_command(name="clippy_poll", description="Let Clippy create a chaotic poll")
     async def clippy_poll(self, ctx, question: str):
         """Create a poll with Clippy's unhinged options."""
@@ -155,7 +156,7 @@ class UnhingedResponses(commands.Cog):
         except ValueError as e:
             await ctx.respond(f"❌ {e}", ephemeral=True)
             return
-        
+
         # Check user cooldown
         if self.bot.is_user_on_cooldown(ctx.author.id, "clippy_poll"):
             remaining = self.bot.get_user_cooldown_remaining(ctx.author.id, "clippy_poll")
@@ -164,10 +165,10 @@ class UnhingedResponses(commands.Cog):
                 ephemeral=True
             )
             return
-        
+
         # Set cooldown for user
         self.bot.set_user_cooldown(ctx.author.id, "clippy_poll")
-        
+
         # Clippy's chaotic poll options
         clippy_options = [
             "Definitely, but also definitely not 📎",
@@ -179,24 +180,24 @@ class UnhingedResponses(commands.Cog):
             "Yes, but actually no 📎",
             "Reply hazy, try again never 📎"
         ]
-        
+
         # Create embed with poll
         embed = discord.Embed(
             title="📎 Clippy's Chaotic Poll",
             description=f"**Question:** {question}\n\n**Choose your destiny:**",
             color=0x5865F2
         )
-        
+
         # Add poll options (limited to 4 for simplicity)
         selected_options = random.sample(clippy_options, 4)
         for i, option in enumerate(selected_options, 1):
             embed.add_field(name=f"{i}️⃣", value=option, inline=False)
-        
+
         embed.set_footer(text="Click the reactions below to vote! 📎")
-        
+
         # Send the poll
         message = await ctx.respond(embed=embed)
-        
+
         # Add reactions for voting
         reactions = ["1️⃣", "2️⃣", "3️⃣", "4️⃣"]
         try:
@@ -206,7 +207,7 @@ class UnhingedResponses(commands.Cog):
                 await msg.add_reaction(reaction)
         except Exception as e:
             self.bot.logger.error(f"Failed to add reactions to poll: {e}")
-    
+
     @commands.slash_command(name="clippy_help", description="Get help from Clippy (if you dare)")
     async def clippy_help_command(self, ctx):
         """Provide Clippy's version of help."""
@@ -218,36 +219,36 @@ class UnhingedResponses(commands.Cog):
                 ephemeral=True
             )
             return
-        
+
         # Set cooldown for user
         self.bot.set_user_cooldown(ctx.author.id, "clippy_help")
-        
+
         # Create interactive help with buttons
         embed = discord.Embed(
             title="📎 Clippy's \"Helpful\" Guide",
             description="I see you're trying to get help. Would you like me to make it worse?",
             color=0x5865F2
         )
-        
+
         embed.add_field(
             name="🎭 Commands",
             value="`/clippy` - Get an unhinged response\n`/clippy_wisdom` - Questionable life advice\n`/clippy_poll` - Create chaotic polls\n`/clippy_help` - This mess",
             inline=False
         )
-        
+
         embed.add_field(
             name="🤖 About Me",
             value="I'm Clippy, your friendly neighborhood chaos agent. I randomly appear in channels to provide unsolicited advice and existential dread.",
             inline=False
         )
-        
+
         embed.set_footer(text="Remember: I'm here to help... sort of. 📎")
-        
+
         # Create action buttons
         class ClippyHelpView(discord.ui.View):
             def __init__(self):
                 super().__init__(timeout=60)
-            
+
             @discord.ui.button(label="More Chaos", style=discord.ButtonStyle.danger, emoji="💥")
             async def more_chaos(self, button: discord.ui.Button, interaction: discord.Interaction):
                 chaos_quotes = [
@@ -257,7 +258,7 @@ class UnhingedResponses(commands.Cog):
                     "I see you enjoy living dangerously. Respect. 📎"
                 ]
                 await interaction.response.send_message(random.choice(chaos_quotes), ephemeral=True)
-            
+
             @discord.ui.button(label="I Regret This", style=discord.ButtonStyle.secondary, emoji="😭")
             async def regret(self, button: discord.ui.Button, interaction: discord.Interaction):
                 regret_quotes = [
@@ -267,7 +268,7 @@ class UnhingedResponses(commands.Cog):
                     "Regret? More like... re-Clippy! 📎"
                 ]
                 await interaction.response.send_message(random.choice(regret_quotes), ephemeral=True)
-        
+
         await ctx.respond(embed=embed, view=ClippyHelpView())
 
 

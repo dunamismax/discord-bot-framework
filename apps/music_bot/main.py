@@ -1,40 +1,41 @@
 """YouTube Music Discord Bot."""
 
 import asyncio
-import sys
 import os
+import sys
 
 # Add the libs directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'libs'))
 
 import discord
-from shared_utils import load_config, BaseBot, DatabaseMixin
+
+from shared_utils import BaseBot, DatabaseMixin, load_config
 
 
 class MusicBot(DatabaseMixin, BaseBot):
     """YouTube Music Discord Bot."""
-    
+
     def __init__(self):
         config = load_config("music")
-        
+
         # Music bot needs voice state intents
         intents = discord.Intents.default()
         intents.message_content = True
         intents.voice_states = True
         intents.guilds = True
-        
+
         super().__init__(config, intents)
-    
+
     async def setup_hook(self):
         """Set up the bot when it starts."""
         # Initialize database
         await self.setup_database()
-        
+
         await self.load_cogs([
             "cogs.music_player",
             "shared_utils.help_system"
         ])
-        
+
         # Sync slash commands
         if self.config.guild_id:
             guild = self.get_guild(self.config.guild_id)
@@ -44,13 +45,13 @@ class MusicBot(DatabaseMixin, BaseBot):
         else:
             await self.tree.sync()
             self.logger.info("Synced commands globally")
-    
+
     async def on_voice_state_update(self, member, before, after):
         """Handle voice state updates."""
         # If the bot is left alone in a voice channel, disconnect
         if member == self.user:
             return
-        
+
         # Check if bot is in a voice channel and is now alone
         for guild in self.guilds:
             voice_client = guild.voice_client
@@ -70,7 +71,7 @@ class MusicBot(DatabaseMixin, BaseBot):
 async def main():
     """Main function to run the bot."""
     bot = MusicBot()
-    
+
     try:
         await bot.start(bot.config.token)
     except KeyboardInterrupt:

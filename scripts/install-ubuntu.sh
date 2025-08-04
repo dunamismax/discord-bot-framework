@@ -88,10 +88,10 @@ PYTHON_VERSION=$(python3 --version | cut -d' ' -f2)
 MAJOR=$(echo $PYTHON_VERSION | cut -d'.' -f1)
 MINOR=$(echo $PYTHON_VERSION | cut -d'.' -f2)
 
-if [ "$MAJOR" -eq 3 ] && [ "$MINOR" -ge 8 ]; then
+if [ "$MAJOR" -eq 3 ] && [ "$MINOR" -ge 13 ]; then
     print_status "Python $PYTHON_VERSION detected - Compatible!"
 else
-    print_error "Python 3.8+ is required. Found: $PYTHON_VERSION"
+    print_error "Python 3.13+ is required. Found: $PYTHON_VERSION"
     exit 1
 fi
 
