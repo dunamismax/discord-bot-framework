@@ -4,8 +4,6 @@
 
 <div align="center">
 
-# Discord Bot Framework
-
 </div>
 
 <p align="center">
