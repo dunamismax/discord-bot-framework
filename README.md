@@ -9,7 +9,7 @@
 </div>
 
 <p align="center">
-  <a href="https://github.com/dunamismax/pycord">
+  <a href="https://github.com/dunamismax/discord-bot-framework">
     <img src="https://readme-typing-svg.demolab.com/?font=Inter&weight=600&size=28&pause=1000&color=5865F2&center=true&vCenter=true&width=1200&height=90&lines=Modern+Discord+Bots+with+Python+3.8%2B;High-Performance+py-cord+%2B+SQLite+Database;Unhinged+Clippy+Bot+with+Chaotic+Responses;Music+Bot+with+YouTube+%26+Playlist+Support;Advanced+Error+Handling+%26+Logging;Production+Ready+with+Docker+%26+Health+Checks;Database+Persistence+%26+Command+Analytics;Slash+Commands+%26+Modern+Discord+Features;Complete+Help+System+%26+User+Experience;Lightning+Fast+uv+Package+Management;Open+Source+MIT+Licensed+Framework" alt="Typing SVG" />
   </a>
 </p>
@@ -117,7 +117,7 @@ Featuring database persistence, playlist management, and production-ready deploy
 ## Project Structure
 
 ```sh
-pycord/
+discord-bot-framework/
 ├── apps/
 │   ├── clippy_bot/            # Unhinged Microsoft Clippy bot
 │   │   ├── cogs/
@@ -142,9 +142,9 @@ pycord/
 
 ## Documentation
 
-**Guides:** [Setup](docs/SETUP.md) • [Configuration](docs/CONFIG.md) • [Deployment](docs/DEPLOYMENT.md)
+**Guides:** [Setup](docs/SETUP.md) - [Configuration](docs/CONFIG.md) - [Deployment](docs/DEPLOYMENT.md)
 
-**Resources:** [py-cord Docs](https://docs.pycord.dev/) • [Discord Developer Portal](https://discord.com/developers/docs) • [SQLite Docs](https://sqlite.org/docs.html) • [Docker Guide](https://docs.docker.com/)
+**Resources:** [py-cord Docs](https://docs.pycord.dev/) - [Discord Developer Portal](https://discord.com/developers/docs) - [SQLite Docs](https://sqlite.org/docs.html) - [Docker Guide](https://docs.docker.com/)
 
 ---
 
@@ -154,7 +154,7 @@ pycord/
 
 ```bash
 # Clone and setup
-git clone https://github.com/dunamismax/pycord.git && cd pycord
+git clone https://github.com/dunamismax/discord-bot-framework.git && cd discord-bot-framework
 
 # Ensure correct Python version (3.8+ required)
 python --version  # Should show Python 3.8.x or higher
@@ -191,7 +191,7 @@ curl http://localhost:8082/health  # Music bot health
 
 <div align="center">
 
-**Clippy Bot:** Chaotic responses and wisdom • **Music Bot:** YouTube playlists and queue management
+**Clippy Bot:** Chaotic responses and wisdom - **Music Bot:** YouTube playlists and queue management
 
 > **Note:** Both bots require Discord bot tokens. Create applications at [Discord Developer Portal](https://discord.com/developers/applications)
 
@@ -289,7 +289,7 @@ docker-compose stop
 </tr>
 </table>
 
-**Stack highlights:** Modern Python • Discord slash commands • Database persistence • Health monitoring • Production ready
+**Stack highlights:** Modern Python - Discord slash commands - Database persistence - Health monitoring - Production ready
 
 ## Philosophy
 
@@ -441,7 +441,7 @@ _Feel free to use, modify, and distribute_
 
 <p align="center">
   <strong style="color: #5865F2; font-size: 18px;">Discord Bot Monorepo</strong><br>
-  <sub style="color: #5865F2;">Modern Python • Discord API • Database Persistence • Playlist Management • Health Monitoring • Docker Ready • Production Optimized • Open Source</sub>
+  <sub style="color: #5865F2;">Modern Python - Discord API - Database Persistence - Playlist Management - Health Monitoring - Docker Ready - Production Optimized - Open Source</sub>
 </p>
 
 <p align="center">

@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "pycord-monorepo"
+name = "discord-bot-framework"
 version = "0.1.0"
 description = "Discord bot monorepo with Clippy and Music bots"
 authors = [
