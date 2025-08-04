@@ -219,12 +219,28 @@ secrets.json
 *.m4a
 *.wav
 *.flac
+*.ogg
+
+# Bot database files
+*.db
+*.sqlite
+*.sqlite3
+data/
 
 # Bot logs
 logs/
 bot.log
+*.log
+
+# Audio cache and downloads
+audio_cache/
+downloads/
+ytdl_cache/
 
 # Temporary files
 tmp/
 temp/
 .tmp/
+
+# Docker overrides
+docker-compose.override.yml

@@ -20,7 +20,8 @@ class ClippyBot(BaseBot):
     async def setup_hook(self):
         """Set up the bot when it starts."""
         await self.load_cogs([
-            "cogs.unhinged_responses"
+            "cogs.unhinged_responses",
+            "shared_utils.help_system"
         ])
         
         # Sync slash commands

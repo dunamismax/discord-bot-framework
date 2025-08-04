@@ -1,0 +1,31 @@
+{
+  "clippy": {
+    "guild_id": null,
+    "command_prefix": "!",
+    "debug": false,
+    "health_check_port": 8081,
+    "command_cooldown": 1.0
+  },
+  "music": {
+    "guild_id": null,
+    "command_prefix": "!",
+    "debug": false,
+    "database_url": null,
+    "health_check_port": 8082,
+    "max_playlist_size": 100,
+    "max_queue_size": 50,
+    "auto_disconnect_timeout": 300,
+    "command_cooldown": 1.0,
+    "allowed_file_formats": ["mp3", "mp4", "webm", "ogg"],
+    "max_song_duration": 3600,
+    "ytdl_options": {
+      "format": "bestaudio/best",
+      "noplaylist": true,
+      "quiet": true
+    },
+    "ffmpeg_options": {
+      "before_options": "-nostdin",
+      "options": "-vn -b:a 128k"
+    }
+  }
+}

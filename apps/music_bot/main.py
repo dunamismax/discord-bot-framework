@@ -8,10 +8,10 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'libs'))
 
 import discord
-from shared_utils import load_config, BaseBot
+from shared_utils import load_config, BaseBot, DatabaseMixin
 
 
-class MusicBot(BaseBot):
+class MusicBot(DatabaseMixin, BaseBot):
     """YouTube Music Discord Bot."""
     
     def __init__(self):
@@ -27,8 +27,12 @@ class MusicBot(BaseBot):
     
     async def setup_hook(self):
         """Set up the bot when it starts."""
+        # Initialize database
+        await self.setup_database()
+        
         await self.load_cogs([
-            "cogs.music_player"
+            "cogs.music_player",
+            "shared_utils.help_system"
         ])
         
         # Sync slash commands
@@ -73,6 +77,7 @@ async def main():
         bot.logger.info("Bot shutdown requested")
     finally:
         if not bot.is_closed():
+            await bot.close_database()
             await bot.close()
 
 

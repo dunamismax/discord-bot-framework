@@ -1,9 +1,12 @@
 """Configuration loading utilities for Discord bots."""
 
 import os
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import Optional, Dict, Any, List
+from pathlib import Path
 from dotenv import load_dotenv
+import json
+import logging
 
 
 @dataclass
@@ -14,32 +17,113 @@ class BotConfig:
     guild_id: Optional[int] = None
     command_prefix: str = "!"
     debug: bool = False
+    database_url: Optional[str] = None
+    health_check_port: int = 8080
+    max_playlist_size: int = 100
+    max_queue_size: int = 50
+    auto_disconnect_timeout: int = 300  # 5 minutes
+    command_cooldown: float = 1.0  # seconds
+    allowed_file_formats: List[str] = field(default_factory=lambda: ['mp3', 'mp4', 'webm', 'ogg'])
+    max_song_duration: int = 3600  # 1 hour in seconds
+    ytdl_options: Dict[str, Any] = field(default_factory=dict)
+    ffmpeg_options: Dict[str, Any] = field(default_factory=dict)
     
     @classmethod
     def from_env(cls, bot_name: str) -> "BotConfig":
         """Load configuration from environment variables."""
         load_dotenv()
         
-        token_key = f"{bot_name.upper()}_BOT_TOKEN"
-        guild_key = f"{bot_name.upper()}_GUILD_ID"
-        prefix_key = f"{bot_name.upper()}_COMMAND_PREFIX"
-        debug_key = f"{bot_name.upper()}_DEBUG"
+        prefix = bot_name.upper()
         
-        token = os.getenv(token_key)
+        # Required settings
+        token = os.getenv(f"{prefix}_BOT_TOKEN")
         if not token:
-            raise ValueError(f"Missing required environment variable: {token_key}")
+            raise ValueError(f"Missing required environment variable: {prefix}_BOT_TOKEN")
         
-        guild_id = os.getenv(guild_key)
+        # Optional settings with defaults
+        guild_id = os.getenv(f"{prefix}_GUILD_ID")
         guild_id = int(guild_id) if guild_id else None
         
         return cls(
             token=token,
             guild_id=guild_id,
-            command_prefix=os.getenv(prefix_key, "!"),
-            debug=os.getenv(debug_key, "false").lower() == "true"
+            command_prefix=os.getenv(f"{prefix}_COMMAND_PREFIX", "!"),
+            debug=os.getenv(f"{prefix}_DEBUG", "false").lower() == "true",
+            database_url=os.getenv(f"{prefix}_DATABASE_URL"),
+            health_check_port=int(os.getenv(f"{prefix}_HEALTH_CHECK_PORT", "8080")),
+            max_playlist_size=int(os.getenv(f"{prefix}_MAX_PLAYLIST_SIZE", "100")),
+            max_queue_size=int(os.getenv(f"{prefix}_MAX_QUEUE_SIZE", "50")),
+            auto_disconnect_timeout=int(os.getenv(f"{prefix}_AUTO_DISCONNECT_TIMEOUT", "300")),
+            command_cooldown=float(os.getenv(f"{prefix}_COMMAND_COOLDOWN", "1.0")),
+            max_song_duration=int(os.getenv(f"{prefix}_MAX_SONG_DURATION", "3600")),
         )
+    
+    @classmethod
+    def from_file(cls, config_path: Path, bot_name: str) -> "BotConfig":
+        """Load configuration from a JSON file."""
+        if not config_path.exists():
+            raise FileNotFoundError(f"Configuration file not found: {config_path}")
+        
+        with open(config_path, 'r') as f:
+            data = json.load(f)
+        
+        bot_config = data.get(bot_name, {})
+        
+        # Token is still required from environment for security
+        load_dotenv()
+        token = os.getenv(f"{bot_name.upper()}_BOT_TOKEN")
+        if not token:
+            raise ValueError(f"Missing required environment variable: {bot_name.upper()}_BOT_TOKEN")
+        
+        return cls(
+            token=token,
+            guild_id=bot_config.get('guild_id'),
+            command_prefix=bot_config.get('command_prefix', '!'),
+            debug=bot_config.get('debug', False),
+            database_url=bot_config.get('database_url'),
+            health_check_port=bot_config.get('health_check_port', 8080),
+            max_playlist_size=bot_config.get('max_playlist_size', 100),
+            max_queue_size=bot_config.get('max_queue_size', 50),
+            auto_disconnect_timeout=bot_config.get('auto_disconnect_timeout', 300),
+            command_cooldown=bot_config.get('command_cooldown', 1.0),
+            allowed_file_formats=bot_config.get('allowed_file_formats', ['mp3', 'mp4', 'webm', 'ogg']),
+            max_song_duration=bot_config.get('max_song_duration', 3600),
+            ytdl_options=bot_config.get('ytdl_options', {}),
+            ffmpeg_options=bot_config.get('ffmpeg_options', {})
+        )
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert config to dictionary (excluding sensitive data)."""
+        config_dict = {
+            'guild_id': self.guild_id,
+            'command_prefix': self.command_prefix,
+            'debug': self.debug,
+            'database_url': '***' if self.database_url else None,
+            'health_check_port': self.health_check_port,
+            'max_playlist_size': self.max_playlist_size,
+            'max_queue_size': self.max_queue_size,
+            'auto_disconnect_timeout': self.auto_disconnect_timeout,
+            'command_cooldown': self.command_cooldown,
+            'allowed_file_formats': self.allowed_file_formats,
+            'max_song_duration': self.max_song_duration,
+            'ytdl_options': self.ytdl_options,
+            'ffmpeg_options': self.ffmpeg_options
+        }
+        return config_dict
 
 
-def load_config(bot_name: str) -> BotConfig:
-    """Load configuration for a specific bot."""
-    return BotConfig.from_env(bot_name)
+def load_config(bot_name: str, config_file: Optional[Path] = None) -> BotConfig:
+    """Load configuration for a specific bot.
+    
+    Args:
+        bot_name: Name of the bot to load config for
+        config_file: Optional path to JSON config file. If provided, loads from file.
+                    Otherwise loads from environment variables.
+    
+    Returns:
+        BotConfig instance
+    """
+    if config_file and config_file.exists():
+        return BotConfig.from_file(config_file, bot_name)
+    else:
+        return BotConfig.from_env(bot_name)

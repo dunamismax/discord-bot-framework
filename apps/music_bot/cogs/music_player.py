@@ -320,6 +320,281 @@ class MusicPlayer(commands.Cog):
                 )
         
         await ctx.respond(embed=embed)
+    
+    @commands.slash_command(name="playlist", description="Manage music playlists")
+    async def playlist_group(self, ctx):
+        """Playlist management commands."""
+        pass
+    
+    @playlist_group.command(name="create", description="Create a new playlist")
+    async def create_playlist(self, ctx, *, name: str):
+        """Create a new music playlist."""
+        if not ctx.guild:
+            await ctx.respond("❌ Playlists can only be created in servers.", ephemeral=True)
+            return
+        
+        if len(name) > 50:
+            await ctx.respond("❌ Playlist name must be 50 characters or less.", ephemeral=True)
+            return
+        
+        try:
+            playlist_id = await self.bot.db.create_playlist(name, ctx.author.id, ctx.guild.id)
+            await ctx.respond(f"✅ Created playlist **{name}** (ID: {playlist_id})")
+        except Exception as e:
+            self.bot.logger.error(f"Error creating playlist: {e}")
+            await ctx.respond("❌ Failed to create playlist.", ephemeral=True)
+    
+    @playlist_group.command(name="list", description="List your playlists")
+    async def list_playlists(self, ctx):
+        """List user's playlists in the current guild."""
+        if not ctx.guild:
+            await ctx.respond("❌ Playlists can only be viewed in servers.", ephemeral=True)
+            return
+        
+        try:
+            playlists = await self.bot.db.get_user_playlists(ctx.author.id, ctx.guild.id)
+            
+            if not playlists:
+                await ctx.respond("📝 You don't have any playlists yet. Use `/playlist create` to make one!")
+                return
+            
+            embed = discord.Embed(title=f"🎵 {ctx.author.display_name}'s Playlists", color=0x00ff00)
+            
+            for playlist in playlists[:10]:  # Show first 10 playlists
+                song_count = len(playlist['songs'])
+                embed.add_field(
+                    name=f"{playlist['name']} (ID: {playlist['id']})",
+                    value=f"{song_count} song{'s' if song_count != 1 else ''}",
+                    inline=True
+                )
+            
+            if len(playlists) > 10:
+                embed.add_field(
+                    name="",
+                    value=f"... and {len(playlists) - 10} more playlists",
+                    inline=False
+                )
+            
+            await ctx.respond(embed=embed)
+        except Exception as e:
+            self.bot.logger.error(f"Error listing playlists: {e}")
+            await ctx.respond("❌ Failed to list playlists.", ephemeral=True)
+    
+    @playlist_group.command(name="show", description="Show songs in a playlist")
+    async def show_playlist(self, ctx, playlist_id: int):
+        """Show the contents of a playlist."""
+        try:
+            playlist = await self.bot.db.get_playlist(playlist_id)
+            
+            if not playlist:
+                await ctx.respond("❌ Playlist not found.", ephemeral=True)
+                return
+            
+            if playlist['guild_id'] != ctx.guild.id:
+                await ctx.respond("❌ That playlist belongs to a different server.", ephemeral=True)
+                return
+            
+            embed = discord.Embed(
+                title=f"🎵 {playlist['name']}",
+                description=f"Created by <@{playlist['owner_id']}>",
+                color=0x00ff00
+            )
+            
+            songs = playlist['songs']
+            if not songs:
+                embed.add_field(name="Empty Playlist", value="No songs added yet.", inline=False)
+            else:
+                song_list = []
+                for i, song in enumerate(songs[:10], 1):  # Show first 10 songs
+                    song_list.append(f"{i}. **{song['title']}**")
+                
+                embed.add_field(
+                    name=f"Songs ({len(songs)} total)",
+                    value="\n".join(song_list),
+                    inline=False
+                )
+                
+                if len(songs) > 10:
+                    embed.add_field(
+                        name="",
+                        value=f"... and {len(songs) - 10} more songs",
+                        inline=False
+                    )
+            
+            await ctx.respond(embed=embed)
+        except Exception as e:
+            self.bot.logger.error(f"Error showing playlist: {e}")
+            await ctx.respond("❌ Failed to show playlist.", ephemoral=True)
+    
+    @playlist_group.command(name="play", description="Play a playlist")
+    async def play_playlist(self, ctx, playlist_id: int):
+        """Play all songs from a playlist."""
+        await ctx.defer()
+        
+        # Check if user is in a voice channel
+        if not ctx.author.voice:
+            await ctx.followup.send("❌ You need to be in a voice channel to use this command!")
+            return
+        
+        try:
+            playlist = await self.bot.db.get_playlist(playlist_id)
+            
+            if not playlist:
+                await ctx.followup.send("❌ Playlist not found.")
+                return
+            
+            if playlist['guild_id'] != ctx.guild.id:
+                await ctx.followup.send("❌ That playlist belongs to a different server.")
+                return
+            
+            songs = playlist['songs']
+            if not songs:
+                await ctx.followup.send("❌ The playlist is empty.")
+                return
+            
+            # Get or connect to voice channel
+            voice_channel = ctx.author.voice.channel
+            voice_client = self.voice_clients.get(ctx.guild.id)
+            
+            if not voice_client:
+                try:
+                    voice_client = await voice_channel.connect()
+                    self.voice_clients[ctx.guild.id] = voice_client
+                except Exception as e:
+                    await ctx.followup.send(f"❌ Failed to connect to voice channel: {e}")
+                    return
+            elif voice_client.channel != voice_channel:
+                await voice_client.move_to(voice_channel)
+            
+            queue = self.get_queue(ctx.guild.id)
+            added_count = 0
+            
+            # Add songs to queue
+            for song_data in songs:
+                song = Song(
+                    title=song_data['title'],
+                    url=song_data['url'],
+                    webpage_url=song_data['webpage_url'],
+                    duration=song_data.get('duration'),
+                    requester=ctx.author
+                )
+                queue.add(song)
+                added_count += 1
+            
+            # Start playing if not already playing
+            if not queue.is_playing:
+                await self.play_next(ctx.guild.id)
+            
+            await ctx.followup.send(f"🎵 Added **{added_count}** songs from playlist **{playlist['name']}** to the queue!")
+            
+        except Exception as e:
+            self.bot.logger.error(f"Error playing playlist: {e}")
+            await ctx.followup.send("❌ Failed to play playlist.")
+    
+    @playlist_group.command(name="add", description="Add current song to a playlist")
+    async def add_to_playlist(self, ctx, playlist_id: int):
+        """Add the currently playing song to a playlist."""
+        try:
+            queue = self.get_queue(ctx.guild.id)
+            
+            if not queue.current:
+                await ctx.respond("❌ No song is currently playing.", ephemeral=True)
+                return
+            
+            playlist = await self.bot.db.get_playlist(playlist_id)
+            
+            if not playlist:
+                await ctx.respond("❌ Playlist not found.", ephemeral=True)
+                return
+            
+            if playlist['owner_id'] != ctx.author.id:
+                await ctx.respond("❌ You can only add songs to your own playlists.", ephemeral=True)
+                return
+            
+            if playlist['guild_id'] != ctx.guild.id:
+                await ctx.respond("❌ That playlist belongs to a different server.", ephemeral=True)
+                return
+            
+            # Add current song to playlist
+            song_data = {
+                'title': queue.current.title,
+                'url': queue.current.url,
+                'webpage_url': queue.current.webpage_url,
+                'duration': queue.current.duration
+            }
+            
+            success = await self.bot.db.add_song_to_playlist(playlist_id, song_data)
+            
+            if success:
+                await ctx.respond(f"✅ Added **{queue.current.title}** to playlist **{playlist['name']}**!")
+            else:
+                await ctx.respond("❌ Failed to add song to playlist.", ephemeral=True)
+            
+        except Exception as e:
+            self.bot.logger.error(f"Error adding to playlist: {e}")
+            await ctx.respond("❌ Failed to add song to playlist.", ephemeral=True)
+    
+    @playlist_group.command(name="remove", description="Remove a song from a playlist")
+    async def remove_from_playlist(self, ctx, playlist_id: int, song_number: int):
+        """Remove a song from a playlist by its number."""
+        try:
+            playlist = await self.bot.db.get_playlist(playlist_id)
+            
+            if not playlist:
+                await ctx.respond("❌ Playlist not found.", ephemeral=True)
+                return
+            
+            if playlist['owner_id'] != ctx.author.id:
+                await ctx.respond("❌ You can only modify your own playlists.", ephemeral=True)
+                return
+            
+            if playlist['guild_id'] != ctx.guild.id:
+                await ctx.respond("❌ That playlist belongs to a different server.", ephemeral=True)
+                return
+            
+            # Convert to 0-based index
+            song_index = song_number - 1
+            
+            if song_index < 0 or song_index >= len(playlist['songs']):
+                await ctx.respond(f"❌ Invalid song number. Playlist has {len(playlist['songs'])} songs.", ephemeral=True)
+                return
+            
+            removed_song = playlist['songs'][song_index]
+            success = await self.bot.db.remove_song_from_playlist(playlist_id, song_index)
+            
+            if success:
+                await ctx.respond(f"✅ Removed **{removed_song['title']}** from playlist **{playlist['name']}**!")
+            else:
+                await ctx.respond("❌ Failed to remove song from playlist.", ephemeral=True)
+            
+        except Exception as e:
+            self.bot.logger.error(f"Error removing from playlist: {e}")
+            await ctx.respond("❌ Failed to remove song from playlist.", ephemeral=True)
+    
+    @playlist_group.command(name="delete", description="Delete a playlist")
+    async def delete_playlist(self, ctx, playlist_id: int):
+        """Delete a playlist (only the owner can do this)."""
+        try:
+            playlist = await self.bot.db.get_playlist(playlist_id)
+            
+            if not playlist:
+                await ctx.respond("❌ Playlist not found.", ephemeral=True)
+                return
+            
+            if playlist['owner_id'] != ctx.author.id:
+                await ctx.respond("❌ You can only delete your own playlists.", ephemeral=True)
+                return
+            
+            success = await self.bot.db.delete_playlist(playlist_id, ctx.author.id)
+            
+            if success:
+                await ctx.respond(f"✅ Deleted playlist **{playlist['name']}**!")
+            else:
+                await ctx.respond("❌ Failed to delete playlist.", ephemeral=True)
+            
+        except Exception as e:
+            self.bot.logger.error(f"Error deleting playlist: {e}")
+            await ctx.respond("❌ Failed to delete playlist.", ephemeral=True)
 
 
 async def setup(bot):
