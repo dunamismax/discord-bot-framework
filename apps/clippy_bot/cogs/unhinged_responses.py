@@ -272,6 +272,6 @@ class UnhingedResponses(commands.Cog):
         await ctx.respond(embed=embed, view=ClippyHelpView())
 
 
-async def setup(bot):
+def setup(bot):
     """Set up the cog."""
-    await bot.add_cog(UnhingedResponses(bot))
+    bot.add_cog(UnhingedResponses(bot))

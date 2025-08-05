@@ -106,7 +106,7 @@ fi
 # Install and configure Python using uv
 print_header "Installing Python"
 uv python install
-uv python pin 3.13
+uv python pin 3.12
 uv venv
 
 # Install project dependencies

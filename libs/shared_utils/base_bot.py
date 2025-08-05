@@ -17,7 +17,7 @@ from tenacity import (
 from .config_loader import BotConfig
 
 
-class BaseBot(commands.Bot):
+class BaseBot(discord.Bot):
     """Base Discord bot class with common functionality."""
 
     def __init__(self, config: BotConfig, intents: discord.Intents | None = None):
@@ -27,7 +27,6 @@ class BaseBot(commands.Bot):
             intents.voice_states = True
 
         super().__init__(
-            command_prefix=config.command_prefix,
             intents=intents,
             debug_guilds=[config.guild_id] if config.guild_id else None
         )
@@ -143,7 +142,7 @@ class BaseBot(commands.Bot):
         """Load cogs from a list of module paths."""
         for cog_module in cog_modules:
             try:
-                await self.load_extension(cog_module)
+                self.load_extension(cog_module)
                 self.logger.info(f"Loaded cog: {cog_module}")
             except Exception as e:
                 self.logger.error(f"Failed to load cog {cog_module}: {e}")

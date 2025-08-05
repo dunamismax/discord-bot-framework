@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/dunamismax/discord-bot-framework">
-    <img src="https://readme-typing-svg.demolab.com/?font=Inter&weight=600&size=28&pause=1000&color=5865F2&center=true&vCenter=true&width=1200&height=90&lines=Modern+Discord+Bots+with+Python+3.13%2B;Self-Hosted+on+Ubuntu+%2B+WSL+Support;High-Performance+py-cord+%2B+SQLite+Database;Unhinged+Clippy+Bot+with+Chaotic+Responses;Music+Bot+with+YouTube+%26+Playlist+Support;Advanced+Error+Handling+%26+Logging;Caddy+Reverse+Proxy+Integration;Database+Persistence+%26+Command+Analytics;Slash+Commands+%26+Modern+Discord+Features;Complete+Help+System+%26+User+Experience;Lightning+Fast+uv+Package+Management;Open+Source+MIT+Licensed+Framework" alt="Typing SVG" />
+    <img src="https://readme-typing-svg.demolab.com/?font=Inter&weight=600&size=28&pause=1000&color=5865F2&center=true&vCenter=true&width=1200&height=90&lines=Modern+Discord+Bots+with+Python+3.12%2B;Self-Hosted+on+Ubuntu+%2B+WSL+Support;High-Performance+py-cord+%2B+SQLite+Database;Unhinged+Clippy+Bot+with+Chaotic+Responses;Music+Bot+with+YouTube+%26+Playlist+Support;Advanced+Error+Handling+%26+Logging;Caddy+Reverse+Proxy+Integration;Database+Persistence+%26+Command+Analytics;Slash+Commands+%26+Modern+Discord+Features;Complete+Help+System+%26+User+Experience;Lightning+Fast+uv+Package+Management;Open+Source+MIT+Licensed+Framework" alt="Typing SVG" />
   </a>
 </p>
 
@@ -20,7 +20,7 @@ Designed for self-hosting on Ubuntu Linux with enterprise-grade features
 </div>
 
 <p align="center">
-  <a href="https://python.org/"><img src="https://img.shields.io/badge/Python-3.13+-5865F2.svg?logo=python&logoColor=white&style=for-the-badge" alt="Python Version"></a>
+  <a href="https://python.org/"><img src="https://img.shields.io/badge/Python-3.12+-5865F2.svg?logo=python&logoColor=white&style=for-the-badge" alt="Python Version"></a>
   <a href="https://docs.pycord.dev/"><img src="https://img.shields.io/badge/py--cord-2.6.1+-5865F2.svg?logo=discord&logoColor=white&style=for-the-badge" alt="py-cord Version"></a>
   <a href="https://docs.astral.sh/uv/"><img src="https://img.shields.io/badge/uv-Package_Manager-5865F2.svg?style=for-the-badge&logoColor=white" alt="uv"></a>
   <a href="https://sqlite.org/"><img src="https://img.shields.io/badge/SQLite-3.x-5865F2.svg?logo=sqlite&logoColor=white&style=for-the-badge" alt="SQLite"></a>
@@ -57,6 +57,8 @@ The framework implements user-level cooldowns, input validation with XSS prevent
 
 ## Quick Start
 
+📋 **[Complete Deployment Guide](DEPLOYMENT.md)** - Step-by-step instructions for Discord integration and server setup
+
 ### Installation (Ubuntu/WSL)
 
 ```bash
@@ -73,7 +75,7 @@ git clone https://github.com/dunamismax/discord-bot-framework.git
 cd discord-bot-framework
 
 # Install Python and project dependencies with uv
-uv python install 3.13
+uv python install 3.12
 uv sync --all-extras
 
 # Configure bot tokens (create applications at Discord Developer Portal)
@@ -91,7 +93,7 @@ uv run python validate.py
 
 This project relies entirely on [uv](https://docs.astral.sh/uv/) for Python workflow:
 
-- **Python Versions:** The repository pins Python 3.13 via `.python-version`. Run `uv python install` to download and manage the interpreter.
+- **Python Versions:** The repository pins Python 3.12 via `.python-version`. Run `uv python install 3.12` to download and manage the interpreter.
 - **Virtual Environments:** `uv venv` creates an isolated `.venv` directory. `uv sync` will also create it automatically if missing.
 - **Dependencies:** Use `uv sync --all-extras` to install project and workspace dependencies from `uv.lock`.
 - **Running Bots:** All scripts invoke `uv run` so commands execute within the managed environment.
@@ -250,7 +252,6 @@ uv sync --all-extras             # Install all dependencies with extras
 python validate.py               # Syntax validation and import checking
 uv run ruff check .              # Code linting with modern Python standards
 uv run ruff format .             # Automatic code formatting
-python -m pytest tests/          # Run integration and unit tests
 ```
 
 **Service Management:**
@@ -272,8 +273,8 @@ sudo journalctl -u clippy-bot -f              # Real-time log viewing
 <table align="center">
 <tr>
 <td align="center">
-<img src="https://img.shields.io/badge/Language-Python_3.13+-5865F2?style=for-the-badge&logo=python&logoColor=white" alt="Python"><br>
-<sub>Modern async/await with type hints</sub>
+<img src="https://img.shields.io/badge/Language-Python_3.12+-5865F2?style=for-the-badge&logo=python&logoColor=white" alt="Python"><br>
+<sub>Python 3.12+ with async/await and type hints</sub>
 </td>
 <td align="center">
 <img src="https://img.shields.io/badge/Discord-py--cord_2.6.1-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="py-cord"><br>

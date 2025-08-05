@@ -158,6 +158,6 @@ class HelpSystem(commands.Cog):
         await ctx.respond(embed=embed)
 
 
-async def setup(bot):
+def setup(bot):
     """Set up the help system cog."""
-    await bot.add_cog(HelpSystem(bot))
+    bot.add_cog(HelpSystem(bot))

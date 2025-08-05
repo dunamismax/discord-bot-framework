@@ -321,10 +321,7 @@ class MusicPlayer(commands.Cog):
 
         await ctx.respond(embed=embed)
 
-    @commands.slash_command(name="playlist", description="Manage music playlists")
-    async def playlist_group(self, ctx):
-        """Playlist management commands."""
-        pass
+    playlist_group = discord.SlashCommandGroup("playlist", "Manage music playlists")
 
     @playlist_group.command(name="create", description="Create a new playlist")
     async def create_playlist(self, ctx, *, name: str):
@@ -424,7 +421,7 @@ class MusicPlayer(commands.Cog):
             await ctx.respond(embed=embed)
         except Exception as e:
             self.bot.logger.error(f"Error showing playlist: {e}")
-            await ctx.respond("❌ Failed to show playlist.", ephemoral=True)
+            await ctx.respond("❌ Failed to show playlist.", ephemeral=True)
 
     @playlist_group.command(name="play", description="Play a playlist")
     async def play_playlist(self, ctx, playlist_id: int):
@@ -597,6 +594,6 @@ class MusicPlayer(commands.Cog):
             await ctx.respond("❌ Failed to delete playlist.", ephemeral=True)
 
 
-async def setup(bot):
+def setup(bot):
     """Set up the cog."""
-    await bot.add_cog(MusicPlayer(bot))
+    bot.add_cog(MusicPlayer(bot))

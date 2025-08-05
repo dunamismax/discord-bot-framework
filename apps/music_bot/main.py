@@ -4,8 +4,10 @@ import asyncio
 import os
 import sys
 
-# Add the libs directory to the Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'libs'))
+# Add the libs and project root directories to the Python path
+project_root = os.path.join(os.path.dirname(__file__), '..', '..')
+sys.path.insert(0, os.path.join(project_root, 'libs'))
+sys.path.insert(0, project_root)
 
 import discord
 
@@ -28,23 +30,51 @@ class MusicBot(DatabaseMixin, BaseBot):
 
     async def setup_hook(self):
         """Set up the bot when it starts."""
+        if hasattr(self, '_setup_hook_called'):
+            self.logger.info("setup_hook already called, skipping...")
+            return
+            
+        self._setup_hook_called = True
+        self.logger.info("Starting setup_hook...")
+        
         # Initialize database
-        await self.setup_database()
+        try:
+            await self.setup_database()
+            self.logger.info("Database setup completed")
+        except Exception as e:
+            self.logger.error(f"Database setup failed: {e}")
 
-        await self.load_cogs([
-            "cogs.music_player",
-            "shared_utils.help_system"
-        ])
+        try:
+            await self.load_cogs([
+                "apps.music_bot.cogs.music_player",
+                "shared_utils.help_system"
+            ])
+        except Exception as e:
+            self.logger.error(f"Failed to load cogs: {e}")
+            import traceback
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
 
         # Sync slash commands
+        self.logger.info("Starting command sync...")
         if self.config.guild_id:
             guild = self.get_guild(self.config.guild_id)
             if guild:
-                await self.tree.sync(guild=guild)
+                await self.sync_commands(guild_ids=[guild.id])
                 self.logger.info(f"Synced commands to guild: {guild.name}")
+            else:
+                self.logger.error(f"Could not find guild with ID: {self.config.guild_id}")
         else:
-            await self.tree.sync()
+            await self.sync_commands()
             self.logger.info("Synced commands globally")
+        
+        self.logger.info("setup_hook completed!")
+
+    async def on_ready(self):
+        """Called when the bot is ready."""
+        await super().on_ready()
+        # Manually call setup_hook if it wasn't called automatically
+        if not hasattr(self, '_setup_hook_called'):
+            await self.setup_hook()
 
     async def on_voice_state_update(self, member, before, after):
         """Handle voice state updates."""
