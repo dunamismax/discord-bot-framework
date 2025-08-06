@@ -1,6 +1,7 @@
 """YouTube music player cog."""
 
 import asyncio
+import shutil
 from collections import deque
 from dataclasses import dataclass
 
@@ -64,24 +65,32 @@ class MusicPlayer(commands.Cog):
         self.queues: dict[int, MusicQueue] = {}
         self.voice_clients: dict[int, discord.VoiceClient] = {}
         self.inactivity_timers: dict[int, asyncio.Task] = {}
+        
+        # Schedule cleanup of any stale voice sessions
+        bot.loop.create_task(self._cleanup_stale_voice_sessions())
 
         # yt-dlp options for best audio quality streaming
         self.ydl_opts = {
-            'format': 'bestaudio/best',
+            'format': 'bestaudio[ext=webm]/bestaudio/best',
             'noplaylist': True,
             'quiet': True,
             'no_warnings': True,
-            'extractaudio': True,
-            'audioformat': 'mp3',
+            'extractaudio': False,  # Don't extract, stream directly
             'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
             'restrictfilenames': True,
             'logtostderr': False,
+            'cookiefile': None,
+            'source_address': '0.0.0.0'  # Help with IPv6 issues
         }
 
+        # Find FFmpeg executable
+        ffmpeg_path = shutil.which('ffmpeg') or '/usr/bin/ffmpeg'
+        
         # FFmpeg options for Discord voice
         self.ffmpeg_options = {
-            'before_options': '-nostdin',
-            'options': '-vn -b:a 128k'
+            'executable': ffmpeg_path,
+            'before_options': '-nostdin -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+            'options': '-vn'
         }
 
     def get_queue(self, guild_id: int) -> MusicQueue:
@@ -89,6 +98,37 @@ class MusicPlayer(commands.Cog):
         if guild_id not in self.queues:
             self.queues[guild_id] = MusicQueue()
         return self.queues[guild_id]
+
+    async def _cleanup_stale_voice_sessions(self):
+        """Clean up any stale voice sessions on startup."""
+        try:
+            await asyncio.sleep(3)  # Wait for bot to be fully ready
+            self.bot.logger.info("Cleaning up stale voice sessions...")
+            
+            for guild in self.bot.guilds:
+                # Check if Discord thinks we're in a voice channel
+                bot_voice_state = guild.get_member(self.bot.user.id)
+                if bot_voice_state and bot_voice_state.voice:
+                    self.bot.logger.info(f"Bot is in voice channel {bot_voice_state.voice.channel.name} in {guild.name}")
+                    
+                if guild.voice_client:
+                    self.bot.logger.info(f"Found stale voice connection in {guild.name}, disconnecting...")
+                    try:
+                        await guild.voice_client.disconnect(force=True)
+                        self.bot.logger.info(f"Disconnected stale voice session in {guild.name}")
+                    except Exception as e:
+                        self.bot.logger.error(f"Error disconnecting stale voice session in {guild.name}: {e}")
+                else:
+                    self.bot.logger.info(f"No voice client found for {guild.name}")
+            
+            # Clear internal references
+            self.voice_clients.clear()
+            self.queues.clear()
+            
+            self.bot.logger.info("Stale voice session cleanup completed")
+            
+        except Exception as e:
+            self.bot.logger.error(f"Error during voice session cleanup: {e}")
 
     async def extract_song_info(self, query: str) -> Song | None:
         """Extract song information from YouTube URL or search query."""
@@ -116,27 +156,49 @@ class MusicPlayer(commands.Cog):
 
     async def play_next(self, guild_id: int):
         """Play the next song in the queue."""
+        self.bot.logger.info(f"play_next called for guild {guild_id}")
         queue = self.get_queue(guild_id)
         voice_client = self.voice_clients.get(guild_id)
 
         if not voice_client or not voice_client.is_connected():
+            self.bot.logger.warning(f"Voice client not available or not connected for guild {guild_id}")
+            # Clean up disconnected voice client
+            if voice_client and not voice_client.is_connected():
+                self.voice_clients.pop(guild_id, None)
+            queue.is_playing = False
             return
 
         next_song = queue.next()
         if next_song:
+            self.bot.logger.info(f"Playing next song: {next_song.title}")
+            self.bot.logger.info(f"Song URL: {next_song.url}")
             queue.current = next_song
             queue.is_playing = True
             queue.is_paused = False
 
             try:
+                # Verify voice client is still connected before playing
+                if not voice_client.is_connected():
+                    self.bot.logger.error("Voice client disconnected before playing")
+                    queue.is_playing = False
+                    return
+                
+                self.bot.logger.info("Creating FFmpeg audio source...")
+                # Create audio source with reconnection support
                 source = discord.FFmpegPCMAudio(
                     next_song.url,
                     **self.ffmpeg_options
                 )
+                
+                self.bot.logger.info("Creating volume transformer...")
+                # Transform source for Discord streaming
+                source = discord.PCMVolumeTransformer(source, volume=0.5)
 
                 def after_playing(error):
                     if error:
                         self.bot.logger.error(f"Player error: {error}")
+                    else:
+                        self.bot.logger.info("Song finished playing")
 
                     # Schedule next song
                     asyncio.run_coroutine_threadsafe(
@@ -144,6 +206,7 @@ class MusicPlayer(commands.Cog):
                         self.bot.loop
                     )
 
+                self.bot.logger.info("Starting playback...")
                 voice_client.play(source, after=after_playing)
                 self.bot.logger.info(f"Now playing: {next_song.title}")
 
@@ -151,7 +214,8 @@ class MusicPlayer(commands.Cog):
                 await self.reset_inactivity_timer(guild_id)
 
             except Exception as e:
-                self.bot.logger.error(f"Error playing song: {e}")
+                self.bot.logger.error(f"Error playing song: {str(e)}")
+                self.bot.logger.exception("Full traceback:")
                 queue.is_playing = False
         else:
             queue.is_playing = False
@@ -197,17 +261,122 @@ class MusicPlayer(commands.Cog):
 
         # Get or connect to voice channel
         voice_channel = ctx.author.voice.channel
+        
+        # Check bot permissions in the voice channel
+        permissions = voice_channel.permissions_for(ctx.guild.me)
+        if not permissions.connect:
+            await ctx.followup.send("❌ I don't have permission to connect to this voice channel!")
+            return
+        if not permissions.speak:
+            await ctx.followup.send("❌ I don't have permission to speak in this voice channel!")
+            return
+            
+        self.bot.logger.info(f"Voice channel permissions check passed for: {voice_channel.name}")
+        
         voice_client = self.voice_clients.get(ctx.guild.id)
 
-        if not voice_client:
+        if not voice_client or not voice_client.is_connected():
             try:
-                voice_client = await voice_channel.connect()
-                self.voice_clients[ctx.guild.id] = voice_client
+                self.bot.logger.info(f"Connecting to voice channel: {voice_channel.name} (ID: {voice_channel.id})")
+                
+                # Clean up any existing disconnected voice client
+                if voice_client and not voice_client.is_connected():
+                    await voice_client.cleanup()
+                    self.voice_clients.pop(ctx.guild.id, None)
+                
+                # Also check for any guild-level voice client
+                guild = self.bot.get_guild(ctx.guild.id)
+                if guild and guild.voice_client:
+                    self.bot.logger.info("Found existing guild voice client, disconnecting...")
+                    try:
+                        await guild.voice_client.disconnect(force=True)
+                    except:
+                        pass
+                
+                # Check Discord's voice state for the bot - critical fix for 4006 errors
+                bot_member = guild.get_member(self.bot.user.id)
+                if bot_member and bot_member.voice:
+                    self.bot.logger.info(f"Bot is currently in voice channel {bot_member.voice.channel.name} according to Discord")
+                    if bot_member.voice.channel != voice_channel:
+                        self.bot.logger.info("Bot is in wrong voice channel, disconnecting first...")
+                        # Force disconnect via the voice websocket
+                        if hasattr(self.bot, '_connection') and hasattr(self.bot._connection, '_voice_clients'):
+                            existing_vc = self.bot._connection._voice_clients.get(ctx.guild.id)
+                            if existing_vc:
+                                try:
+                                    await existing_vc.disconnect(force=True)
+                                    self.bot.logger.info("Forcefully disconnected existing voice connection")
+                                except:
+                                    pass
+                
+                # Try connecting with proper error handling
+                voice_client = None
+                max_retries = 2
+                
+                for attempt in range(max_retries):
+                    try:
+                        self.bot.logger.info(f"Connection attempt {attempt + 1}/{max_retries}")
+                        voice_client = await voice_channel.connect(timeout=10.0, reconnect=False)
+                        
+                        # Wait for handshake to complete
+                        await asyncio.sleep(1.0)
+                        
+                        if voice_client and voice_client.is_connected():
+                            self.voice_clients[ctx.guild.id] = voice_client
+                            self.bot.logger.info(f"Successfully connected to voice channel: {voice_channel.name}")
+                            break
+                        else:
+                            self.bot.logger.warning(f"Voice client not properly connected on attempt {attempt + 1}")
+                            if voice_client:
+                                await voice_client.cleanup()
+                            voice_client = None
+                            
+                    except Exception as e:
+                        self.bot.logger.error(f"Connection attempt {attempt + 1} failed: {e}")
+                        
+                        # Clean up any existing voice client
+                        if voice_client:
+                            try:
+                                await voice_client.cleanup()
+                                await voice_client.disconnect(force=True)
+                            except:
+                                pass
+                        voice_client = None
+                        
+                        # Force disconnect from Discord's perspective
+                        try:
+                            guild = self.bot.get_guild(ctx.guild.id)
+                            if guild and guild.voice_client:
+                                await guild.voice_client.disconnect(force=True)
+                        except:
+                            pass
+                            
+                        # Clear our internal reference
+                        if ctx.guild.id in self.voice_clients:
+                            self.voice_clients.pop(ctx.guild.id, None)
+                        
+                        if attempt < max_retries - 1:
+                            self.bot.logger.info("Waiting 3 seconds before retry...")
+                            await asyncio.sleep(3)  # Wait longer before retry
+                
+                if not voice_client or not voice_client.is_connected():
+                    raise Exception("Failed to establish voice connection after multiple attempts")
+                    
             except Exception as e:
-                await ctx.followup.send(f"Failed to connect to voice channel: {e}")
+                self.bot.logger.error(f"Failed to connect to voice channel: {e}")
+                self.bot.logger.exception("Voice connection error traceback:")
+                await ctx.followup.send(f"❌ Failed to connect to voice channel: {str(e)}")
                 return
         elif voice_client.channel != voice_channel:
-            await voice_client.move_to(voice_channel)
+            try:
+                self.bot.logger.info(f"Moving to voice channel: {voice_channel.name}")
+                await voice_client.move_to(voice_channel)
+                await asyncio.sleep(0.5)  # Wait for move to complete
+                self.bot.logger.info(f"Successfully moved to voice channel: {voice_channel.name}")
+            except Exception as e:
+                self.bot.logger.error(f"Failed to move to voice channel: {e}")
+                await ctx.followup.send(f"❌ Failed to move to voice channel: {str(e)}")
+                return
 
         # Extract song information
         song = await self.extract_song_info(query)
@@ -222,8 +391,10 @@ class MusicPlayer(commands.Cog):
         queue.add(song)
 
         if not queue.is_playing:
-            await self.play_next(ctx.guild.id)
             await ctx.followup.send(f"🎵 Now playing: **{song.title}**")
+            # Add a small delay to ensure voice connection is fully established
+            await asyncio.sleep(1)
+            await self.play_next(ctx.guild.id)
         else:
             await ctx.followup.send(f"🎵 Added to queue: **{song.title}**\nPosition in queue: {len(queue.queue)}")
 

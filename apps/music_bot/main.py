@@ -13,6 +13,30 @@ import discord
 
 from shared_utils import BaseBot, DatabaseMixin, load_config
 
+# Load Opus for voice functionality
+if not discord.opus.is_loaded():
+    # Try common locations for opus library
+    opus_paths = [
+        '/opt/homebrew/lib/libopus.dylib',  # Homebrew on Apple Silicon
+        '/usr/local/lib/libopus.dylib',     # Homebrew on Intel Mac
+        '/opt/homebrew/Cellar/opus/1.5.2/lib/libopus.dylib',  # Specific Homebrew path
+        'libopus.so.0',                     # Linux
+        'libopus.so',                       # Linux alternative
+        'opus'                              # Try system default
+    ]
+    
+    for path in opus_paths:
+        try:
+            discord.opus.load_opus(path)
+            print(f"Successfully loaded Opus from: {path}")
+            break
+        except OSError:
+            continue
+    else:
+        print("Warning: Could not load Opus library. Voice functionality may not work.")
+else:
+    print("Opus already loaded")
+
 
 class MusicBot(DatabaseMixin, BaseBot):
     """YouTube Music Discord Bot."""
@@ -78,8 +102,16 @@ class MusicBot(DatabaseMixin, BaseBot):
 
     async def on_voice_state_update(self, member, before, after):
         """Handle voice state updates."""
-        # If the bot is left alone in a voice channel, disconnect
+        # If the bot's voice state changes, handle cleanup
         if member == self.user:
+            if before.channel and not after.channel:
+                # Bot was disconnected - clean up any leftover voice client references
+                music_cog = self.get_cog("MusicPlayer")
+                if music_cog and member.guild.id in music_cog.voice_clients:
+                    music_cog.voice_clients.pop(member.guild.id, None)
+                    queue = music_cog.get_queue(member.guild.id)
+                    queue.clear()
+                    self.logger.info(f"Bot disconnected from voice channel in {member.guild.name}")
             return
 
         # Check if bot is in a voice channel and is now alone
