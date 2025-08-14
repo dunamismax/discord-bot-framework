@@ -17,12 +17,12 @@ type Song struct {
 
 // MusicQueue manages the music queue for a guild.
 type MusicQueue struct {
-	songs     []*Song
-	current   *Song
-	isPlaying bool
-	isPaused  bool
+	songs      []*Song
+	current    *Song
+	isPlaying  bool
+	isPaused   bool
 	shouldSkip bool
-	mutex     sync.RWMutex
+	mutex      sync.RWMutex
 }
 
 // NewMusicQueue creates a new music queue.

@@ -25,11 +25,11 @@ type BotConfig struct {
 	GuildID string `json:"guild_id,omitempty"`
 
 	// Behavior settings
-	DebugMode         bool          `json:"debug_mode"`
-	LogLevel          string        `json:"log_level"`
-	JSONLogging       bool          `json:"json_logging"`
-	CommandCooldown   time.Duration `json:"command_cooldown"`
-	ShutdownTimeout   time.Duration `json:"shutdown_timeout"`
+	DebugMode       bool          `json:"debug_mode"`
+	LogLevel        string        `json:"log_level"`
+	JSONLogging     bool          `json:"json_logging"`
+	CommandCooldown time.Duration `json:"command_cooldown"`
+	ShutdownTimeout time.Duration `json:"shutdown_timeout"`
 
 	// Feature flags
 	RandomResponses bool `json:"random_responses"`

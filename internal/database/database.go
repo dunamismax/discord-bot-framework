@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sawyer/discord-bot-framework/internal/errors"
 	_ "github.com/mattn/go-sqlite3" // SQLite driver
+	"github.com/sawyer/discord-bot-framework/internal/errors"
 )
 
 // DB represents a database connection with music bot functionality.
@@ -28,11 +28,11 @@ type Playlist struct {
 
 // Song represents a song in a playlist.
 type Song struct {
-	Title       string `json:"title"`
-	URL         string `json:"url"`
-	WebpageURL  string `json:"webpage_url"`
-	Duration    *int   `json:"duration,omitempty"`
-	AddedAt     string `json:"added_at"`
+	Title      string `json:"title"`
+	URL        string `json:"url"`
+	WebpageURL string `json:"webpage_url"`
+	Duration   *int   `json:"duration,omitempty"`
+	AddedAt    string `json:"added_at"`
 }
 
 // NewDB creates a new database connection.
@@ -141,7 +141,7 @@ func (db *DB) GetUserPlaylists(ctx context.Context, ownerID, guildID string) ([]
 	if err != nil {
 		return nil, errors.NewDatabaseError("failed to get user playlists", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var playlists []*Playlist
 

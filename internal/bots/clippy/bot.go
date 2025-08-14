@@ -3,8 +3,8 @@ package clippy
 
 import (
 	"context"
+	"log/slog"
 	"math/rand"
-	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -17,7 +17,7 @@ import (
 // Bot represents the Clippy Discord bot.
 type Bot struct {
 	*framework.Bot
-	logger         *logging.Logger
+	logger         *slog.Logger
 	quotes         []string
 	wisdomQuotes   []string
 	randomTicker   *time.Ticker
@@ -243,7 +243,7 @@ func (b *Bot) stopRandomResponses() {
 // sendRandomMessage sends a random message to a random channel.
 func (b *Bot) sendRandomMessage() {
 	session := b.GetSession()
-	
+
 	if len(session.State.Guilds) == 0 {
 		return
 	}

@@ -4,7 +4,7 @@ package music
 import (
 	"context"
 	"fmt"
-	"strconv"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -20,13 +20,13 @@ import (
 // Bot represents the Music Discord bot.
 type Bot struct {
 	*framework.Bot
-	logger             *logging.Logger
-	db                 *database.DB
-	queues             map[string]*MusicQueue
-	voiceConnections   map[string]*discordgo.VoiceConnection
-	inactivityTimers   map[string]*time.Timer
-	playerMutex        sync.RWMutex
-	audioExtractor     *AudioExtractor
+	logger           *slog.Logger
+	db               *database.DB
+	queues           map[string]*MusicQueue
+	voiceConnections map[string]*discordgo.VoiceConnection
+	inactivityTimers map[string]*time.Timer
+	playerMutex      sync.RWMutex
+	audioExtractor   *AudioExtractor
 }
 
 // NewBot creates a new Music bot instance.
@@ -77,7 +77,7 @@ func (b *Bot) Stop(ctx context.Context) error {
 	b.playerMutex.Lock()
 	for guildID, vc := range b.voiceConnections {
 		if vc != nil {
-			vc.Disconnect()
+			_ = vc.Disconnect()
 		}
 		delete(b.voiceConnections, guildID)
 	}
@@ -282,7 +282,20 @@ func (b *Bot) getQueue(guildID string) *MusicQueue {
 // handlePlayCommand handles the /play command.
 func (b *Bot) handlePlayCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 	// Check if user is in a voice channel
-	if i.Member.VoiceState == nil {
+	guild, err := s.State.Guild(i.GuildID)
+	if err != nil {
+		return errors.NewDiscordError("failed to get guild", err)
+	}
+
+	var userVoiceState *discordgo.VoiceState
+	for _, vs := range guild.VoiceStates {
+		if vs.UserID == i.Member.User.ID {
+			userVoiceState = vs
+			break
+		}
+	}
+
+	if userVoiceState == nil {
 		return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -293,7 +306,7 @@ func (b *Bot) handlePlayCommand(s *discordgo.Session, i *discordgo.InteractionCr
 	}
 
 	// Defer the response since this might take a while
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 	})
 	if err != nil {
@@ -301,7 +314,7 @@ func (b *Bot) handlePlayCommand(s *discordgo.Session, i *discordgo.InteractionCr
 	}
 
 	guildID := i.GuildID
-	channelID := i.Member.VoiceState.ChannelID
+	channelID := userVoiceState.ChannelID
 	query := i.ApplicationCommandData().Options[0].StringValue()
 
 	// Get or create voice connection
@@ -323,7 +336,7 @@ func (b *Bot) handlePlayCommand(s *discordgo.Session, i *discordgo.InteractionCr
 	queue.Add(song)
 
 	if !queue.IsPlaying() {
-		_, err = s.FollowupMessageCreate(i.Interaction, &discordgo.WebhookParams{
+		_, err = s.FollowupMessageCreate(i.Interaction, false, &discordgo.WebhookParams{
 			Content: fmt.Sprintf("🎵 Now playing: **%s**", song.Title),
 		})
 		if err != nil {
@@ -333,7 +346,7 @@ func (b *Bot) handlePlayCommand(s *discordgo.Session, i *discordgo.InteractionCr
 		// Start playing
 		go b.playNext(s, guildID, vc)
 	} else {
-		_, err = s.FollowupMessageCreate(i.Interaction, &discordgo.WebhookParams{
+		_, err = s.FollowupMessageCreate(i.Interaction, false, &discordgo.WebhookParams{
 			Content: fmt.Sprintf("🎵 Added to queue: **%s**\nPosition in queue: %d", song.Title, queue.Size()),
 		})
 		if err != nil {
@@ -430,7 +443,7 @@ func (b *Bot) handleStopCommand(s *discordgo.Session, i *discordgo.InteractionCr
 	b.playerMutex.Lock()
 	vc, exists := b.voiceConnections[guildID]
 	if exists && vc != nil {
-		vc.Disconnect()
+		_ = vc.Disconnect()
 		delete(b.voiceConnections, guildID)
 	}
 
@@ -473,7 +486,10 @@ func (b *Bot) handleQueueCommand(s *discordgo.Session, i *discordgo.InteractionC
 	}
 
 	if current := queue.Current(); current != nil {
-		status := "⏸️ Paused" if queue.IsPaused() else "▶️ Playing"
+		status := "▶️ Playing"
+		if queue.IsPaused() {
+			status = "⏸️ Paused"
+		}
 		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 			Name:   fmt.Sprintf("%s Now", status),
 			Value:  fmt.Sprintf("**%s**\nRequested by: <@%s>", current.Title, current.RequesterID),
@@ -731,20 +747,17 @@ func (b *Bot) playNext(s *discordgo.Session, guildID string, vc *discordgo.Voice
 		defer ticker.Stop()
 
 		elapsed := time.Duration(0)
-		for {
-			select {
-			case <-ticker.C:
-				if queue.IsPaused() {
-					continue // Don't increment elapsed time when paused
-				}
+		for range ticker.C {
+			if queue.IsPaused() {
+				continue // Don't increment elapsed time when paused
+			}
 
-				elapsed += time.Second
-				if elapsed >= duration || queue.ShouldSkip() {
-					// Song finished or was skipped
-					queue.SetSkip(false)
-					b.playNext(s, guildID, vc)
-					return
-				}
+			elapsed += time.Second
+			if elapsed >= duration || queue.ShouldSkip() {
+				// Song finished or was skipped
+				queue.SetSkip(false)
+				b.playNext(s, guildID, vc)
+				return
 			}
 		}
 	}()
@@ -764,7 +777,7 @@ func (b *Bot) startInactivityTimer(guildID string) {
 	timer := time.AfterFunc(b.GetConfig().InactivityTimeout, func() {
 		b.playerMutex.Lock()
 		if vc, exists := b.voiceConnections[guildID]; exists && vc != nil {
-			vc.Disconnect()
+			_ = vc.Disconnect()
 			delete(b.voiceConnections, guildID)
 		}
 		delete(b.inactivityTimers, guildID)
@@ -800,7 +813,7 @@ func (b *Bot) respondError(s *discordgo.Session, i *discordgo.InteractionCreate,
 
 // followupError sends a followup error message.
 func (b *Bot) followupError(s *discordgo.Session, interaction *discordgo.Interaction, message string) error {
-	_, err := s.FollowupMessageCreate(interaction, &discordgo.WebhookParams{
+	_, err := s.FollowupMessageCreate(interaction, false, &discordgo.WebhookParams{
 		Content: message,
 		Flags:   discordgo.MessageFlagsEphemeral,
 	})

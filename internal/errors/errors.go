@@ -7,16 +7,16 @@ import "fmt"
 type ErrorType string
 
 const (
-	ErrorTypeValidation   ErrorType = "validation"
-	ErrorTypeDiscord      ErrorType = "discord"
-	ErrorTypeAPI          ErrorType = "api"
-	ErrorTypeDatabase     ErrorType = "database"
-	ErrorTypeNotFound     ErrorType = "not_found"
-	ErrorTypeRateLimit    ErrorType = "rate_limit"
-	ErrorTypePermission   ErrorType = "permission"
-	ErrorTypeInternal     ErrorType = "internal"
-	ErrorTypeAudio        ErrorType = "audio"
-	ErrorTypeNetwork      ErrorType = "network"
+	ErrorTypeValidation ErrorType = "validation"
+	ErrorTypeDiscord    ErrorType = "discord"
+	ErrorTypeAPI        ErrorType = "api"
+	ErrorTypeDatabase   ErrorType = "database"
+	ErrorTypeNotFound   ErrorType = "not_found"
+	ErrorTypeRateLimit  ErrorType = "rate_limit"
+	ErrorTypePermission ErrorType = "permission"
+	ErrorTypeInternal   ErrorType = "internal"
+	ErrorTypeAudio      ErrorType = "audio"
+	ErrorTypeNetwork    ErrorType = "network"
 )
 
 // BotError represents an error that occurred in the bot framework.

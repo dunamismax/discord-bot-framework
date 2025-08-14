@@ -4,6 +4,7 @@ package framework
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -24,7 +25,7 @@ type MessageHandler func(s *discordgo.Session, m *discordgo.MessageCreate) error
 type Bot struct {
 	session         *discordgo.Session
 	config          *config.BotConfig
-	logger          *logging.Logger
+	logger          *slog.Logger
 	commandHandlers map[string]CommandHandler
 	messageHandlers []MessageHandler
 	commands        []*discordgo.ApplicationCommand
@@ -321,6 +322,6 @@ func (b *Bot) GetConfig() *config.BotConfig {
 }
 
 // GetLogger returns the bot logger.
-func (b *Bot) GetLogger() *logging.Logger {
+func (b *Bot) GetLogger() *slog.Logger {
 	return b.logger
 }

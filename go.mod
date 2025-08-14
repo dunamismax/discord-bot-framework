@@ -5,8 +5,8 @@ go 1.23.0
 require (
 	github.com/bwmarrin/discordgo v0.27.1
 	github.com/magefile/mage v1.15.0
+	github.com/mattn/go-sqlite3 v1.14.31
 	github.com/spf13/cobra v1.8.0
-	golang.org/x/text v0.28.0
 )
 
 require (

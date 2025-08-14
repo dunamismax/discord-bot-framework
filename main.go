@@ -34,7 +34,7 @@ func main() {
 	rootCmd.Flags().StringVarP(&configFlag, "config", "c", "config.json", "Configuration file path")
 	rootCmd.Flags().BoolVarP(&debugFlag, "debug", "d", false, "Enable debug mode")
 
-	rootCmd.MarkFlagRequired("bot")
+	_ = rootCmd.MarkFlagRequired("bot")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Printf("Error: %v\n", err)
