@@ -18,7 +18,7 @@ var (
 
 func main() {
 	rootCmd := &cobra.Command{
-		Use:   "discord-bot-framework",
+		Use:   "go-discord-bots",
 		Short: "A multi-bot Discord framework",
 		Long:  "Discord Bot Framework - Run multiple Discord bots from a single application",
 		Run:   runBot,
@@ -76,14 +76,14 @@ func runBot(cmd *cobra.Command, args []string) {
 
 func runSingleApp(appName, binaryDir string) error {
 	appPath := filepath.Join("bin", appName)
-	
+
 	// Check if binary exists
 	if _, err := os.Stat(appPath); os.IsNotExist(err) {
 		return fmt.Errorf("app binary not found: %s (run 'mage build' first)", appPath)
 	}
 
 	fmt.Printf("Starting %s bot...\n", appName)
-	
+
 	cmd := exec.Command(appPath)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -94,13 +94,13 @@ func runSingleApp(appName, binaryDir string) error {
 
 func runAllApps(binaryDir string) error {
 	apps := []string{"clippy", "music", "mtg-card-bot"}
-	
+
 	fmt.Println("Starting all bots...")
-	
+
 	// Start all apps concurrently
 	for _, app := range apps {
 		appPath := filepath.Join("bin", app)
-		
+
 		// Check if binary exists
 		if _, err := os.Stat(appPath); os.IsNotExist(err) {
 			fmt.Printf("Warning: %s binary not found, skipping\n", app)

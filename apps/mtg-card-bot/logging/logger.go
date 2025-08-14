@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	mtgErrors "github.com/sawyer/discord-bot-framework/apps/mtg-card-bot/errors"
+	mtgErrors "github.com/sawyer/go-discord-bots/apps/mtg-card-bot/errors"
 )
 
 // DefaultLogger is the global logger instance.

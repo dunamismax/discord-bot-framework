@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	clippyErrors "github.com/sawyer/discord-bot-framework/apps/clippy/errors"
+	clippyErrors "github.com/sawyer/go-discord-bots/apps/clippy/errors"
 )
 
 // DefaultLogger is the global logger instance.

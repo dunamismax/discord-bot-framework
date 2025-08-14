@@ -9,7 +9,7 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3" // SQLite driver
-	"github.com/sawyer/discord-bot-framework/internal/errors"
+	"github.com/sawyer/go-discord-bots/internal/errors"
 )
 
 // DB represents a database connection with music bot functionality.

@@ -10,14 +10,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sawyer/discord-bot-framework/pkg/errors"
-	"github.com/sawyer/discord-bot-framework/pkg/logging"
+	"github.com/sawyer/go-discord-bots/pkg/errors"
+	"github.com/sawyer/go-discord-bots/pkg/logging"
 )
 
 // InputValidator provides comprehensive input validation.
 type InputValidator struct {
 	maxLength       int
-	allowedPatterns []string
 	blockedPatterns []string
 	rateLimiter     *RateLimiter
 }
@@ -36,17 +35,17 @@ func NewInputValidator(maxLength int) *InputValidator {
 			"onerror=",
 			"onclick=",
 			"onmouseover=",
-			
+
 			// Code injection patterns
 			"../",
 			"..\\",
 			"file://",
 			"ftp://",
-			
+
 			// Discord mention abuse
 			"@everyone",
 			"@here",
-			
+
 			// SQL injection patterns (basic)
 			"' OR ",
 			"' AND ",
@@ -55,7 +54,7 @@ func NewInputValidator(maxLength int) *InputValidator {
 			"DELETE FROM",
 			"INSERT INTO",
 			"UPDATE SET",
-			
+
 			// Command injection
 			"; rm ",
 			"& rm ",
@@ -65,12 +64,12 @@ func NewInputValidator(maxLength int) *InputValidator {
 			"| del ",
 			"$(rm",
 			"`rm",
-			
+
 			// Path traversal
 			"/etc/passwd",
 			"/etc/shadow",
 			"C:\\Windows\\System32",
-			
+
 			// Potential token patterns
 			"Bot ",
 			"Bearer ",
@@ -92,7 +91,7 @@ func (iv *InputValidator) ValidateInput(input, userID string) error {
 	if len(input) == 0 {
 		return errors.NewValidationError("input cannot be empty")
 	}
-	
+
 	if len(input) > iv.maxLength {
 		logging.LogSecurityEvent("input_too_long", userID, "input exceeds maximum length", "low")
 		return errors.NewValidationError("input too long")
@@ -119,15 +118,15 @@ func (iv *InputValidator) ValidateInput(input, userID string) error {
 // checkSuspiciousPatterns checks for malicious patterns.
 func (iv *InputValidator) checkSuspiciousPatterns(input, userID string) error {
 	lower := strings.ToLower(input)
-	
+
 	for _, pattern := range iv.blockedPatterns {
 		if strings.Contains(lower, strings.ToLower(pattern)) {
-			logging.LogSecurityEvent("suspicious_pattern_detected", userID, 
+			logging.LogSecurityEvent("suspicious_pattern_detected", userID,
 				"blocked pattern: "+pattern, "high")
 			return errors.NewSecurityError("suspicious content detected", nil)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -136,7 +135,7 @@ func (iv *InputValidator) checkTokenPatterns(input, userID string) error {
 	// Discord token patterns
 	discordTokenPattern := regexp.MustCompile(`[MN][A-Za-z\d]{23}\.[\w-]{6}\.[\w-]{27}`)
 	if discordTokenPattern.MatchString(input) {
-		logging.LogSecurityEvent("potential_token_exposure", userID, 
+		logging.LogSecurityEvent("potential_token_exposure", userID,
 			"Discord token pattern detected", "critical")
 		return errors.NewSecurityError("potential token exposure detected", nil)
 	}
@@ -146,7 +145,7 @@ func (iv *InputValidator) checkTokenPatterns(input, userID string) error {
 	matches := secretPattern.FindAllString(input, -1)
 	for _, match := range matches {
 		if len(match) >= 32 {
-			logging.LogSecurityEvent("potential_secret_exposure", userID, 
+			logging.LogSecurityEvent("potential_secret_exposure", userID,
 				"long secret-like string detected", "high")
 			return errors.NewSecurityError("potential secret exposure detected", nil)
 		}
@@ -160,11 +159,11 @@ func (iv *InputValidator) validateURLs(input, userID string) error {
 	// Find potential URLs
 	urlPattern := regexp.MustCompile(`https?://[^\s]+`)
 	urls := urlPattern.FindAllString(input, -1)
-	
+
 	for _, urlStr := range urls {
 		parsedURL, err := url.Parse(urlStr)
 		if err != nil {
-			logging.LogSecurityEvent("malformed_url", userID, 
+			logging.LogSecurityEvent("malformed_url", userID,
 				"malformed URL detected: "+urlStr, "medium")
 			return errors.NewValidationError("invalid URL format")
 		}
@@ -184,7 +183,7 @@ func (iv *InputValidator) validateURL(parsedURL *url.URL, userID string) error {
 	suspiciousSchemes := []string{"file", "ftp", "data", "javascript"}
 	for _, scheme := range suspiciousSchemes {
 		if strings.EqualFold(parsedURL.Scheme, scheme) {
-			logging.LogSecurityEvent("dangerous_url_scheme", userID, 
+			logging.LogSecurityEvent("dangerous_url_scheme", userID,
 				"dangerous URL scheme: "+parsedURL.Scheme, "high")
 			return errors.NewSecurityError("dangerous URL scheme detected", nil)
 		}
@@ -192,7 +191,7 @@ func (iv *InputValidator) validateURL(parsedURL *url.URL, userID string) error {
 
 	// Block private/internal IPs
 	if isPrivateIP(parsedURL.Hostname()) {
-		logging.LogSecurityEvent("private_ip_access", userID, 
+		logging.LogSecurityEvent("private_ip_access", userID,
 			"attempt to access private IP: "+parsedURL.Hostname(), "high")
 		return errors.NewSecurityError("access to private networks blocked", nil)
 	}
@@ -202,10 +201,10 @@ func (iv *InputValidator) validateURL(parsedURL *url.URL, userID string) error {
 		"bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly",
 		"discord.gg", // Discord invites can be spam
 	}
-	
+
 	for _, domain := range suspiciousDomains {
 		if strings.Contains(strings.ToLower(parsedURL.Hostname()), domain) {
-			logging.LogSecurityEvent("suspicious_domain", userID, 
+			logging.LogSecurityEvent("suspicious_domain", userID,
 				"suspicious domain detected: "+parsedURL.Hostname(), "medium")
 			// Don't block, just log for monitoring
 			break
@@ -261,7 +260,7 @@ func NewRateLimiter(limit int, window time.Duration) *RateLimiter {
 // Allow checks if a request should be allowed.
 func (rl *RateLimiter) Allow(userID string) bool {
 	now := time.Now()
-	
+
 	// Clean old requests
 	if timestamps, exists := rl.requests[userID]; exists {
 		var validTimestamps []time.Time
@@ -302,10 +301,10 @@ func (tv *TokenValidator) GenerateSecureToken() (string, error) {
 	if _, err := rand.Read(bytes); err != nil {
 		return "", errors.NewInternalError("failed to generate secure token", err)
 	}
-	
+
 	token := hex.EncodeToString(bytes)
 	tv.validTokens[token] = time.Now().Add(15 * time.Minute) // 15 minute expiry
-	
+
 	return token, nil
 }
 
@@ -342,7 +341,7 @@ func SanitizeInput(input string) string {
 	input = strings.ReplaceAll(input, "&", "&amp;")
 	input = strings.ReplaceAll(input, "\"", "&quot;")
 	input = strings.ReplaceAll(input, "'", "&#x27;")
-	
+
 	return input
 }
 
@@ -351,14 +350,14 @@ func ValidateDiscordID(id string) error {
 	if len(id) < 17 || len(id) > 19 {
 		return errors.NewValidationError("invalid Discord ID format")
 	}
-	
+
 	// Check if it's all digits
 	for _, char := range id {
 		if char < '0' || char > '9' {
 			return errors.NewValidationError("Discord ID must be numeric")
 		}
 	}
-	
+
 	return nil
 }
 
@@ -366,18 +365,18 @@ func ValidateDiscordID(id string) error {
 func CheckPermissions(userID string, requiredPermissions []string) error {
 	// This would integrate with Discord permissions or a custom permission system
 	// For now, implement basic admin check
-	
+
 	adminUsers := []string{
 		// These would come from configuration
 		"123456789012345678", // Example admin ID
 	}
-	
+
 	for _, adminID := range adminUsers {
 		if SecureCompare(userID, adminID) {
 			return nil // Admin has all permissions
 		}
 	}
-	
+
 	// For non-admins, would check specific permissions
 	// This is a placeholder implementation
 	return errors.NewPermissionError("insufficient permissions", nil)
@@ -386,7 +385,7 @@ func CheckPermissions(userID string, requiredPermissions []string) error {
 // LogSecurityIncident logs a security incident with appropriate severity.
 func LogSecurityIncident(incident, userID, details, severity string) {
 	logging.LogSecurityEvent(incident, userID, details, severity)
-	
+
 	// For critical incidents, could trigger additional alerting
 	if severity == "critical" {
 		// Could send to external monitoring/alerting system

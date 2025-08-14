@@ -8,9 +8,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sawyer/discord-bot-framework/pkg/config"
-	"github.com/sawyer/discord-bot-framework/pkg/logging"
-	"github.com/sawyer/discord-bot-framework/pkg/metrics"
+	"github.com/sawyer/go-discord-bots/pkg/config"
+	"github.com/sawyer/go-discord-bots/pkg/logging"
+	"github.com/sawyer/go-discord-bots/pkg/metrics"
 )
 
 func main() {

@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sawyer/discord-bot-framework/apps/mtg-card-bot/errors"
-	"github.com/sawyer/discord-bot-framework/apps/mtg-card-bot/logging"
-	"github.com/sawyer/discord-bot-framework/apps/mtg-card-bot/metrics"
+	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/errors"
+	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/logging"
+	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/metrics"
 )
 
 const (

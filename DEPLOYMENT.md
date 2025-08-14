@@ -63,7 +63,7 @@ For **each application**:
 ```bash
 # Clone repository
 git clone <repository-url>
-cd discord-bot-framework
+cd go-discord-bots
 
 # Setup development environment (installs tools, creates configs)
 mage setup
@@ -74,32 +74,17 @@ mage setup
 Create a `.env` file in the project root:
 
 ```bash
-# Create your .env file
-cat > .env << 'EOF'
-# MTG Card Bot Configuration
-DISCORD_TOKEN=your_mtg_bot_token_here
-LOG_LEVEL=info
-JSON_LOGGING=false
-DEBUG=false
-
-# Clippy Bot Configuration  
-CLIPPY_DISCORD_TOKEN=your_clippy_bot_token_here
-CLIPPY_GUILD_ID=your_server_id_here
-CLIPPY_DEBUG=false
-
-# Music Bot Configuration
-MUSIC_DISCORD_TOKEN=your_music_bot_token_here
-MUSIC_GUILD_ID=your_server_id_here
-MUSIC_DEBUG=false
-MUSIC_DATABASE_URL=music.db
-EOF
+# Create your .env file from the example
+cp .env.example .env
 ```
 
-Replace the placeholder values:
-- `your_mtg_bot_token_here` → Your MTG Card Bot token from Step 1.3
+Edit the `.env` file and replace the placeholder values:
+- `your_default_discord_token_here` → Can be any of your bot tokens as a fallback
 - `your_clippy_bot_token_here` → Your Clippy Bot token from Step 1.3
 - `your_music_bot_token_here` → Your Music Bot token from Step 1.3
-- `your_server_id_here` → Your server ID from Step 2
+- `your_guild_id_for_testing` → Your server ID from Step 2
+
+Note: The MTG Card Bot will use the global `DISCORD_TOKEN` unless you specify a specific token. You can add `MTG_DISCORD_TOKEN=your_mtg_token_here` if you want to use a separate token for the MTG bot.
 
 ## Step 4: Invite Bots to Your Server
 
@@ -184,9 +169,9 @@ After=network.target
 [Service]
 Type=simple
 User=botuser
-WorkingDirectory=/path/to/discord-bot-framework
+WorkingDirectory=/path/to/go-discord-bots
 Environment=DISCORD_TOKEN=your_token_here
-ExecStart=/path/to/discord-bot-framework/bin/mtg-card-bot
+ExecStart=/path/to/go-discord-bots/bin/mtg-card-bot
 Restart=always
 RestartSec=10
 
@@ -328,8 +313,6 @@ Enable debug logging for troubleshooting:
 ```env
 DEBUG=true
 LOG_LEVEL=debug
-CLIPPY_DEBUG=true
-MUSIC_DEBUG=true
 ```
 
 ### Performance Monitoring
@@ -376,7 +359,7 @@ top -p $(pgrep -f mtg-card-bot)
 tar -czf bot-backup-$(date +%Y%m%d).tar.gz .env config.json music.db
 
 # Automated daily backups
-echo "0 2 * * * cd /path/to/discord-bot-framework && tar -czf backup-\$(date +\%Y\%m\%d).tar.gz .env config.json *.db" | crontab -
+echo "0 2 * * * cd /path/to/go-discord-bots && tar -czf backup-\$(date +\%Y\%m\%d).tar.gz .env config.json *.db" | crontab -
 ```
 
 ## Need Help?

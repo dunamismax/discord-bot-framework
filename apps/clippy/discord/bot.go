@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/sawyer/discord-bot-framework/apps/clippy/config"
-	"github.com/sawyer/discord-bot-framework/apps/clippy/errors"
-	"github.com/sawyer/discord-bot-framework/apps/clippy/logging"
-	"github.com/sawyer/discord-bot-framework/apps/clippy/metrics"
+	"github.com/sawyer/go-discord-bots/apps/clippy/errors"
+	"github.com/sawyer/go-discord-bots/apps/clippy/logging"
+	"github.com/sawyer/go-discord-bots/apps/clippy/metrics"
+	"github.com/sawyer/go-discord-bots/pkg/config"
 )
 
 // Bot represents a Discord bot instance with all necessary components.

@@ -17,7 +17,7 @@ The Discord Bot Framework team takes security bugs seriously. We appreciate your
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
-Instead, please send an email to [security@discord-bot-framework.com](mailto:security@discord-bot-framework.com) with:
+Instead, please send an email to [security@go-discord-bots.com](mailto:security@go-discord-bots.com) with:
 
 1. **Description**: A clear description of the vulnerability
 2. **Impact**: The potential impact of the vulnerability
@@ -116,17 +116,17 @@ Security updates will be released as patch versions (e.g., 2.0.1, 2.0.2) and wil
 
 Subscribe to security updates:
 - GitHub Security Advisories: Follow this repository
-- Security mailing list: [security-announce@discord-bot-framework.com](mailto:security-announce@discord-bot-framework.com)
+- Security mailing list: [security-announce@go-discord-bots.com](mailto:security-announce@go-discord-bots.com)
 
 ## Security Contact Information
 
-- **Security Email**: [security@discord-bot-framework.com](mailto:security@discord-bot-framework.com)
-- **PGP Key**: Available at [https://discord-bot-framework.com/.well-known/pgp-key.txt](https://discord-bot-framework.com/.well-known/pgp-key.txt)
-- **Security Page**: [https://discord-bot-framework.com/security](https://discord-bot-framework.com/security)
+- **Security Email**: [security@go-discord-bots.com](mailto:security@go-discord-bots.com)
+- **PGP Key**: Available at [https://go-discord-bots.com/.well-known/pgp-key.txt](https://go-discord-bots.com/.well-known/pgp-key.txt)
+- **Security Page**: [https://go-discord-bots.com/security](https://go-discord-bots.com/security)
 
 ## Legal
 
-This security policy is subject to our [Terms of Service](https://discord-bot-framework.com/terms) and [Privacy Policy](https://discord-bot-framework.com/privacy).
+This security policy is subject to our [Terms of Service](https://go-discord-bots.com/terms) and [Privacy Policy](https://go-discord-bots.com/privacy).
 
 By participating in our security disclosure program, you agree to:
 

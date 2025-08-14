@@ -232,7 +232,7 @@ func LogPerformanceMetric(component, metric string, value interface{}, unit stri
 // LogSecurityEvent logs security-related events.
 func LogSecurityEvent(event, userID, reason string, severity string) {
 	logger := WithComponent("security")
-	
+
 	level := slog.LevelInfo
 	switch strings.ToLower(severity) {
 	case "critical", "high":

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	mtgErrors "github.com/sawyer/discord-bot-framework/apps/mtg-card-bot/errors"
+	mtgErrors "github.com/sawyer/go-discord-bots/apps/mtg-card-bot/errors"
 )
 
 // Metrics holds all application metrics.

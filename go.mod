@@ -1,4 +1,4 @@
-module github.com/sawyer/discord-bot-framework
+module github.com/sawyer/go-discord-bots
 
 go 1.23.0
 

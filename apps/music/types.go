@@ -1,16 +1,7 @@
 // Package main provides types for the Music bot.
 package main
 
-import "time"
-
-// Song represents a music track.
-type Song struct {
-	Title         string `json:"title"`
-	URL           string `json:"url"`
-	Duration      *int   `json:"duration,omitempty"` // Duration in seconds
-	RequesterID   string `json:"requester_id"`
-	RequesterName string `json:"requester_name"`
-}
+// Song type is defined in queue.go - no need to duplicate it here
 
 // Queue represents a music queue for a guild.
 type Queue struct {

@@ -43,8 +43,8 @@ type Config struct {
 	MaxRetries      int           `json:"max_retries"`
 
 	// Feature flags
-	RandomResponses   bool          `json:"random_responses,omitempty"`
-	RandomInterval    time.Duration `json:"random_interval,omitempty"`
+	RandomResponses    bool          `json:"random_responses,omitempty"`
+	RandomInterval     time.Duration `json:"random_interval,omitempty"`
 	RandomMessageDelay time.Duration `json:"random_message_delay,omitempty"`
 
 	// Cache settings
@@ -63,7 +63,7 @@ type Config struct {
 // Load loads configuration for a specific bot type.
 func Load(botType BotType) (*Config, error) {
 	cfg := getDefaultConfig(botType)
-	
+
 	// Load from environment variables
 	if err := cfg.loadFromEnvironment(); err != nil {
 		return nil, fmt.Errorf("failed to load environment configuration: %w", err)

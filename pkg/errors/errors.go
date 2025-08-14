@@ -41,11 +41,11 @@ const (
 
 // BotError represents a categorized error with additional context.
 type BotError struct {
-	ErrorType  ErrorType
-	Message    string
-	Cause      error
-	StatusCode int
-	Context    map[string]interface{}
+	ErrorType   ErrorType
+	Message     string
+	Cause       error
+	StatusCode  int
+	ContextData map[string]interface{}
 }
 
 // Error implements the error interface.
@@ -68,10 +68,10 @@ func (e *BotError) Type() string {
 
 // Context returns the error context for logging purposes.
 func (e *BotError) Context() map[string]interface{} {
-	if e.Context == nil {
+	if e.ContextData == nil {
 		return make(map[string]interface{})
 	}
-	return e.Context
+	return e.ContextData
 }
 
 // NewAPIError creates a new API-related error.
@@ -122,7 +122,7 @@ func NewRateLimitError(message string, retryAfter int) *BotError {
 	return &BotError{
 		ErrorType: ErrorTypeRateLimit,
 		Message:   message,
-		Context: map[string]interface{}{
+		ContextData: map[string]interface{}{
 			"retry_after": retryAfter,
 		},
 	}
@@ -233,10 +233,10 @@ func WithContext(err error, key string, value interface{}) error {
 		botErr = NewInternalError(err.Error(), err)
 	}
 
-	if botErr.Context == nil {
-		botErr.Context = make(map[string]interface{})
+	if botErr.ContextData == nil {
+		botErr.ContextData = make(map[string]interface{})
 	}
-	botErr.Context[key] = value
+	botErr.ContextData[key] = value
 
 	return botErr
 }
@@ -249,12 +249,12 @@ func WithContextMap(err error, context map[string]interface{}) error {
 		botErr = NewInternalError(err.Error(), err)
 	}
 
-	if botErr.Context == nil {
-		botErr.Context = make(map[string]interface{})
+	if botErr.ContextData == nil {
+		botErr.ContextData = make(map[string]interface{})
 	}
 
 	for key, value := range context {
-		botErr.Context[key] = value
+		botErr.ContextData[key] = value
 	}
 
 	return botErr

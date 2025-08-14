@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sawyer/discord-bot-framework/apps/clippy/errors"
+	"github.com/sawyer/go-discord-bots/apps/clippy/errors"
 )
 
 // Metrics holds the metrics for the bot.

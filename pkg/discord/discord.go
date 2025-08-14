@@ -2,32 +2,31 @@
 package discord
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/sawyer/discord-bot-framework/pkg/config"
-	"github.com/sawyer/discord-bot-framework/pkg/errors"
-	"github.com/sawyer/discord-bot-framework/pkg/logging"
-	"github.com/sawyer/discord-bot-framework/pkg/metrics"
+	"github.com/sawyer/go-discord-bots/pkg/config"
+	"github.com/sawyer/go-discord-bots/pkg/errors"
+	"github.com/sawyer/go-discord-bots/pkg/logging"
+	"github.com/sawyer/go-discord-bots/pkg/metrics"
 )
 
 // BotInterface defines the common interface that all bots must implement.
 type BotInterface interface {
 	// Start starts the bot
 	Start() error
-	
+
 	// Stop stops the bot
 	Stop() error
-	
+
 	// GetConfig returns the bot configuration
 	GetConfig() *config.Config
-	
+
 	// GetSession returns the Discord session
 	GetSession() *discordgo.Session
-	
+
 	// GetBotInfo returns information about the bot
 	GetBotInfo() BotInfo
 }
@@ -62,12 +61,12 @@ type EventHandler func(s *discordgo.Session, event interface{})
 
 // BaseBot provides common functionality for all Discord bots.
 type BaseBot struct {
-	config      *config.Config
-	session     *discordgo.Session
-	handlers    map[string]CommandHandler
+	config        *config.Config
+	session       *discordgo.Session
+	handlers      map[string]CommandHandler
 	eventHandlers []EventHandler
-	startTime   time.Time
-	isConnected bool
+	startTime     time.Time
+	isConnected   bool
 }
 
 // NewBaseBot creates a new base bot instance.
@@ -120,16 +119,16 @@ func (b *BaseBot) RegisterEventHandler(handler EventHandler) {
 func (b *BaseBot) Start() error {
 	logger := logging.WithBot(b.config.BotName, string(b.config.BotType))
 	logger.Info("Starting Discord bot connection")
-	
+
 	if err := b.session.Open(); err != nil {
 		return errors.NewDiscordError("failed to open Discord connection", err)
 	}
 
 	b.startTime = time.Now()
 	b.isConnected = true
-	
+
 	logging.LogStartup(b.config.BotName, string(b.config.BotType), b.config.CommandPrefix, b.config.LogLevel, b.config.DebugMode)
-	
+
 	return nil
 }
 
@@ -137,17 +136,17 @@ func (b *BaseBot) Start() error {
 func (b *BaseBot) Stop() error {
 	logger := logging.WithBot(b.config.BotName, string(b.config.BotType))
 	logger.Info("Stopping Discord bot")
-	
+
 	b.isConnected = false
-	
+
 	if b.session != nil {
 		if err := b.session.Close(); err != nil {
 			return errors.NewDiscordError("failed to close Discord connection", err)
 		}
 	}
-	
+
 	logging.LogShutdown(b.config.BotName, string(b.config.BotType))
-	
+
 	return nil
 }
 
@@ -180,7 +179,7 @@ func (b *BaseBot) onReady(s *discordgo.Session, event *discordgo.Ready) {
 		"discriminator", event.User.Discriminator,
 		"guilds", len(event.Guilds),
 	)
-	
+
 	// Set bot status
 	status := fmt.Sprintf("Ready | %s", b.config.CommandPrefix+"help")
 	err := s.UpdateGameStatus(0, status)
@@ -192,9 +191,9 @@ func (b *BaseBot) onReady(s *discordgo.Session, event *discordgo.Ready) {
 // onDisconnect handles disconnect events.
 func (b *BaseBot) onDisconnect(s *discordgo.Session, event *discordgo.Disconnect) {
 	logger := logging.WithBot(b.config.BotName, string(b.config.BotType))
-	logger.Warn("Bot disconnected", "reason", event.CloseCode)
+	logger.Warn("Bot disconnected")
 	b.isConnected = false
-	
+
 	metrics.RecordPerformanceMetric("discord", "disconnections", 1, "count")
 }
 
@@ -303,16 +302,16 @@ func ValidateInput(input string, maxLength int) error {
 	if len(input) == 0 {
 		return errors.NewValidationError("input cannot be empty")
 	}
-	
+
 	if len(input) > maxLength {
 		return errors.NewValidationError(fmt.Sprintf("input too long (max %d characters)", maxLength))
 	}
-	
+
 	// Basic security checks
 	if containsSuspiciousContent(input) {
 		return errors.NewSecurityError("suspicious input detected", nil)
 	}
-	
+
 	return nil
 }
 
@@ -329,14 +328,14 @@ func containsSuspiciousContent(input string) bool {
 		"@everyone",
 		"@here",
 	}
-	
+
 	lower := strings.ToLower(input)
 	for _, pattern := range suspicious {
 		if strings.Contains(lower, pattern) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -347,7 +346,7 @@ func CreateEmbed(title, description, color string) *discordgo.MessageEmbed {
 		Description: description,
 		Timestamp:   time.Now().Format(time.RFC3339),
 	}
-	
+
 	// Set color based on string input
 	switch strings.ToLower(color) {
 	case "red", "error":
@@ -363,7 +362,7 @@ func CreateEmbed(title, description, color string) *discordgo.MessageEmbed {
 	default:
 		embed.Color = 0x7289DA // Discord blurple
 	}
-	
+
 	return embed
 }
 

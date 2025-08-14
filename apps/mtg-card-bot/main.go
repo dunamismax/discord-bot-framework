@@ -8,12 +8,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sawyer/discord-bot-framework/apps/mtg-card-bot/cache"
-	"github.com/sawyer/discord-bot-framework/apps/mtg-card-bot/discord"
-	"github.com/sawyer/discord-bot-framework/apps/mtg-card-bot/scryfall"
-	"github.com/sawyer/discord-bot-framework/pkg/config"
-	"github.com/sawyer/discord-bot-framework/pkg/logging"
-	"github.com/sawyer/discord-bot-framework/pkg/metrics"
+	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/cache"
+	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/discord"
+	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/scryfall"
+	"github.com/sawyer/go-discord-bots/pkg/config"
+	"github.com/sawyer/go-discord-bots/pkg/logging"
+	"github.com/sawyer/go-discord-bots/pkg/metrics"
 )
 
 func main() {

@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sawyer/discord-bot-framework/apps/mtg-card-bot/errors"
-	"github.com/sawyer/discord-bot-framework/apps/mtg-card-bot/logging"
-	"github.com/sawyer/discord-bot-framework/apps/mtg-card-bot/scryfall"
+	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/errors"
+	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/logging"
+	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/scryfall"
 )
 
 // Entry represents a cached item with expiration.

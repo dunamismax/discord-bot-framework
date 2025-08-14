@@ -9,24 +9,24 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sawyer/discord-bot-framework/pkg/logging"
-	"github.com/sawyer/discord-bot-framework/pkg/metrics"
+	"github.com/sawyer/go-discord-bots/pkg/logging"
+	"github.com/sawyer/go-discord-bots/pkg/metrics"
 )
 
 // Monitor provides comprehensive monitoring capabilities.
 type Monitor struct {
-	alertManager *AlertManager
-	healthCheck  *HealthChecker
+	alertManager    *AlertManager
+	healthCheck     *HealthChecker
 	metricsExporter *MetricsExporter
-	httpServer   *http.Server
-	mu           sync.RWMutex
-	isRunning    bool
+	httpServer      *http.Server
+	mu              sync.RWMutex
+	isRunning       bool
 }
 
 // NewMonitor creates a new monitoring instance.
 func NewMonitor(port int) *Monitor {
 	mux := http.NewServeMux()
-	
+
 	monitor := &Monitor{
 		alertManager:    NewAlertManager(),
 		healthCheck:     NewHealthChecker(),
@@ -110,7 +110,7 @@ func (m *Monitor) Stop() error {
 // healthEndpoint handles health check requests.
 func (m *Monitor) healthEndpoint(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	health := m.healthCheck.GetStatus()
 	if health.Overall == "healthy" {
 		w.WriteHeader(http.StatusOK)
@@ -118,32 +118,32 @@ func (m *Monitor) healthEndpoint(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 
-	fmt.Fprintf(w, `{"status": "%s", "checks": %d, "timestamp": "%s"}`,
+	_, _ = fmt.Fprintf(w, `{"status": "%s", "checks": %d, "timestamp": "%s"}`,
 		health.Overall, len(health.Checks), time.Now().Format(time.RFC3339))
 }
 
 // metricsEndpoint handles Prometheus metrics requests.
 func (m *Monitor) metricsEndpoint(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
-	
+
 	metrics := m.metricsExporter.Export()
-	fmt.Fprint(w, metrics)
+	_, _ = fmt.Fprint(w, metrics)
 }
 
 // statusEndpoint provides detailed status information.
 func (m *Monitor) statusEndpoint(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	status := map[string]interface{}{
-		"uptime":    time.Since(time.Now()).String(),
-		"version":   "2.0.0",
+		"uptime":     time.Since(time.Now()).String(),
+		"version":    "2.0.0",
 		"go_version": runtime.Version(),
-		"metrics":   metrics.GetMetricsSummary(),
-		"health":    m.healthCheck.GetStatus(),
-		"alerts":    m.alertManager.GetActiveAlerts(),
+		"metrics":    metrics.GetMetricsSummary(),
+		"health":     m.healthCheck.GetStatus(),
+		"alerts":     m.alertManager.GetActiveAlerts(),
 	}
 
-	fmt.Fprintf(w, "%+v", status)
+	_, _ = fmt.Fprintf(w, "%+v", status)
 }
 
 // alertsEndpoint handles alert webhook requests.
@@ -155,7 +155,7 @@ func (m *Monitor) alertsEndpoint(w http.ResponseWriter, r *http.Request) {
 		// Return active alerts
 		alerts := m.alertManager.GetActiveAlerts()
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, "%+v", alerts)
+		_, _ = fmt.Fprintf(w, "%+v", alerts)
 	}
 }
 
@@ -171,25 +171,25 @@ type AlertManager struct {
 
 // Alert represents an active alert.
 type Alert struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Severity    string    `json:"severity"`
-	Message     string    `json:"message"`
-	StartTime   time.Time `json:"start_time"`
-	LastSeen    time.Time `json:"last_seen"`
-	Count       int       `json:"count"`
-	Resolved    bool      `json:"resolved"`
+	ID           string     `json:"id"`
+	Name         string     `json:"name"`
+	Severity     string     `json:"severity"`
+	Message      string     `json:"message"`
+	StartTime    time.Time  `json:"start_time"`
+	LastSeen     time.Time  `json:"last_seen"`
+	Count        int        `json:"count"`
+	Resolved     bool       `json:"resolved"`
 	ResolvedTime *time.Time `json:"resolved_time,omitempty"`
 }
 
 // AlertRule defines conditions for triggering alerts.
 type AlertRule struct {
-	Name        string
-	Condition   func() bool
-	Severity    string
-	Message     string
-	Cooldown    time.Duration
-	lastFired   time.Time
+	Name      string
+	Condition func() bool
+	Severity  string
+	Message   string
+	Cooldown  time.Duration
+	lastFired time.Time
 }
 
 // Notifier interface for alert notifications.
@@ -256,7 +256,7 @@ func (am *AlertManager) Stop() {
 // monitoringLoop runs the main monitoring loop.
 func (am *AlertManager) monitoringLoop() {
 	logger := logging.WithComponent("alert-manager")
-	
+
 	for {
 		select {
 		case <-am.ticker.C:
@@ -274,7 +274,7 @@ func (am *AlertManager) evaluateRules() {
 	defer am.mu.Unlock()
 
 	now := time.Now()
-	
+
 	for _, rule := range am.rules {
 		// Check cooldown
 		if now.Sub(rule.lastFired) < rule.Cooldown {
@@ -341,16 +341,16 @@ func (am *AlertManager) GetActiveAlerts() []*Alert {
 func (am *AlertManager) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	// Placeholder for webhook handling (e.g., from Prometheus AlertManager)
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprint(w, "OK")
+	_, _ = fmt.Fprint(w, "OK")
 }
 
 // HealthChecker provides health checking capabilities.
 type HealthChecker struct {
-	checks   map[string]HealthCheck
-	status   *HealthStatus
-	mu       sync.RWMutex
-	ticker   *time.Ticker
-	stopCh   chan struct{}
+	checks map[string]HealthCheck
+	status *HealthStatus
+	mu     sync.RWMutex
+	ticker *time.Ticker
+	stopCh chan struct{}
 }
 
 // HealthCheck represents a health check function.
@@ -358,9 +358,9 @@ type HealthCheck func() error
 
 // HealthStatus represents the overall health status.
 type HealthStatus struct {
-	Overall   string                    `json:"overall"`
-	Checks    map[string]CheckResult    `json:"checks"`
-	Timestamp time.Time                 `json:"timestamp"`
+	Overall   string                 `json:"overall"`
+	Checks    map[string]CheckResult `json:"checks"`
+	Timestamp time.Time              `json:"timestamp"`
 }
 
 // CheckResult represents the result of a health check.
@@ -482,27 +482,27 @@ func NewMetricsExporter() *MetricsExporter {
 // Export exports metrics in Prometheus format.
 func (me *MetricsExporter) Export() string {
 	summary := metrics.GetMetricsSummary()
-	
+
 	output := ""
-	
+
 	// Export basic metrics
 	if uptime, ok := summary["uptime_seconds"].(float64); ok {
-		output += fmt.Sprintf("# HELP discord_uptime_seconds Bot uptime in seconds\n")
-		output += fmt.Sprintf("# TYPE discord_uptime_seconds gauge\n")
+		output += "# HELP discord_uptime_seconds Bot uptime in seconds\n"
+		output += "# TYPE discord_uptime_seconds gauge\n"
 		output += fmt.Sprintf("discord_uptime_seconds{bot_name=\"%s\",bot_type=\"%s\"} %f\n",
 			summary["bot_name"], summary["bot_type"], uptime)
 	}
 
 	if commandsTotal, ok := summary["commands_total"].(float64); ok {
-		output += fmt.Sprintf("# HELP discord_commands_total Total number of commands processed\n")
-		output += fmt.Sprintf("# TYPE discord_commands_total counter\n")
+		output += "# HELP discord_commands_total Total number of commands processed\n"
+		output += "# TYPE discord_commands_total counter\n"
 		output += fmt.Sprintf("discord_commands_total{bot_name=\"%s\",bot_type=\"%s\"} %f\n",
 			summary["bot_name"], summary["bot_type"], commandsTotal)
 	}
 
 	if successRate, ok := summary["commands_success_rate"].(float64); ok {
-		output += fmt.Sprintf("# HELP discord_commands_success_rate Command success rate percentage\n")
-		output += fmt.Sprintf("# TYPE discord_commands_success_rate gauge\n")
+		output += "# HELP discord_commands_success_rate Command success rate percentage\n"
+		output += "# TYPE discord_commands_success_rate gauge\n"
 		output += fmt.Sprintf("discord_commands_success_rate{bot_name=\"%s\",bot_type=\"%s\"} %f\n",
 			summary["bot_name"], summary["bot_type"], successRate)
 	}
@@ -510,14 +510,14 @@ func (me *MetricsExporter) Export() string {
 	// Add memory metrics
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	output += fmt.Sprintf("# HELP discord_memory_usage_bytes Current memory usage in bytes\n")
-	output += fmt.Sprintf("# TYPE discord_memory_usage_bytes gauge\n")
+	output += "# HELP discord_memory_usage_bytes Current memory usage in bytes\n"
+	output += "# TYPE discord_memory_usage_bytes gauge\n"
 	output += fmt.Sprintf("discord_memory_usage_bytes{bot_name=\"%s\",bot_type=\"%s\"} %d\n",
 		summary["bot_name"], summary["bot_type"], m.Alloc)
 
 	// Add goroutine count
-	output += fmt.Sprintf("# HELP discord_goroutines Current number of goroutines\n")
-	output += fmt.Sprintf("# TYPE discord_goroutines gauge\n")
+	output += "# HELP discord_goroutines Current number of goroutines\n"
+	output += "# TYPE discord_goroutines gauge\n"
 	output += fmt.Sprintf("discord_goroutines{bot_name=\"%s\",bot_type=\"%s\"} %d\n",
 		summary["bot_name"], summary["bot_type"], runtime.NumGoroutine())
 

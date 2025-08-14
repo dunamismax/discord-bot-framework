@@ -13,12 +13,12 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/sawyer/discord-bot-framework/apps/mtg-card-bot/cache"
-	"github.com/sawyer/discord-bot-framework/apps/mtg-card-bot/config"
-	"github.com/sawyer/discord-bot-framework/apps/mtg-card-bot/errors"
-	"github.com/sawyer/discord-bot-framework/apps/mtg-card-bot/logging"
-	"github.com/sawyer/discord-bot-framework/apps/mtg-card-bot/metrics"
-	"github.com/sawyer/discord-bot-framework/apps/mtg-card-bot/scryfall"
+	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/cache"
+	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/errors"
+	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/logging"
+	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/metrics"
+	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/scryfall"
+	"github.com/sawyer/go-discord-bots/pkg/config"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -350,11 +350,10 @@ func (b *Bot) sendCardGridMessage(s *discordgo.Session, channelID string, items 
 	httpClient := &http.Client{Timeout: 20 * time.Second}
 
 	var files []*discordgo.File
-	var lines []string
 	var mdLines []string
 	for _, it := range items {
 		if it.err != nil || it.card == nil || !it.card.IsValidCard() {
-			lines = append(lines, fmt.Sprintf("%s: not found", it.query))
+			mdLines = append(mdLines, fmt.Sprintf("- %s: not found", it.query))
 			continue
 		}
 
@@ -363,14 +362,10 @@ func (b *Bot) sendCardGridMessage(s *discordgo.Session, channelID string, items 
 		if it.usedFallback {
 			label += " (closest match)"
 		}
-		// Prepare human-friendly link lines
+		// Prepare embed-friendly masked link
 		if it.card.ScryfallURI != "" {
-			// Text form (kept for fallback/plain messages)
-			lines = append(lines, fmt.Sprintf("%s: %s", label, it.card.ScryfallURI))
-			// Embed-friendly masked link
 			mdLines = append(mdLines, fmt.Sprintf("- [%s](%s)", label, it.card.ScryfallURI))
 		} else {
-			lines = append(lines, label)
 			mdLines = append(mdLines, fmt.Sprintf("- %s", label))
 		}
 

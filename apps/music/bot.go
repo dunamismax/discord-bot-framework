@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/sawyer/discord-bot-framework/pkg/config"
-	"github.com/sawyer/discord-bot-framework/pkg/discord"
-	"github.com/sawyer/discord-bot-framework/pkg/errors"
-	"github.com/sawyer/discord-bot-framework/pkg/logging"
-	"github.com/sawyer/discord-bot-framework/pkg/metrics"
+	"github.com/sawyer/go-discord-bots/pkg/config"
+	"github.com/sawyer/go-discord-bots/pkg/discord"
+	"github.com/sawyer/go-discord-bots/pkg/errors"
+	"github.com/sawyer/go-discord-bots/pkg/logging"
+	"github.com/sawyer/go-discord-bots/pkg/metrics"
 )
 
 // Bot represents the Music Discord bot.
@@ -58,7 +58,7 @@ func (b *Bot) Start() error {
 
 	logger := logging.WithComponent("music-bot")
 	logger.Info("Music bot started successfully")
-	
+
 	return nil
 }
 
@@ -107,7 +107,7 @@ func (b *Bot) registerCommands() {
 // handlePlayCommand handles the play command.
 func (b *Bot) handlePlayCommand(ctx *discord.CommandContext) error {
 	startTime := time.Now()
-	
+
 	if len(ctx.Args) == 0 {
 		return errors.NewValidationError("Please provide a song name or URL")
 	}
@@ -159,7 +159,7 @@ func (b *Bot) handlePlayCommand(ctx *discord.CommandContext) error {
 	}
 
 	_, err = ctx.Session.ChannelMessageSend(ctx.ChannelID, response)
-	
+
 	metrics.RecordCommand("play", ctx.UserID, err == nil, time.Since(startTime))
 	return err
 }
@@ -167,7 +167,7 @@ func (b *Bot) handlePlayCommand(ctx *discord.CommandContext) error {
 // handlePauseCommand handles the pause command.
 func (b *Bot) handlePauseCommand(ctx *discord.CommandContext) error {
 	startTime := time.Now()
-	
+
 	queue := b.queueManager.GetQueue(ctx.GuildID)
 	if !queue.IsPlaying() {
 		return errors.NewValidationError("Nothing is currently playing")
@@ -175,7 +175,7 @@ func (b *Bot) handlePauseCommand(ctx *discord.CommandContext) error {
 
 	queue.SetPaused(true)
 	_, err := ctx.Session.ChannelMessageSend(ctx.ChannelID, "⏸️ Paused the current song")
-	
+
 	metrics.RecordCommand("pause", ctx.UserID, err == nil, time.Since(startTime))
 	return err
 }
@@ -183,7 +183,7 @@ func (b *Bot) handlePauseCommand(ctx *discord.CommandContext) error {
 // handleResumeCommand handles the resume command.
 func (b *Bot) handleResumeCommand(ctx *discord.CommandContext) error {
 	startTime := time.Now()
-	
+
 	queue := b.queueManager.GetQueue(ctx.GuildID)
 	if !queue.IsPaused() {
 		return errors.NewValidationError("Nothing is currently paused")
@@ -191,7 +191,7 @@ func (b *Bot) handleResumeCommand(ctx *discord.CommandContext) error {
 
 	queue.SetPaused(false)
 	_, err := ctx.Session.ChannelMessageSend(ctx.ChannelID, "▶️ Resumed the current song")
-	
+
 	metrics.RecordCommand("resume", ctx.UserID, err == nil, time.Since(startTime))
 	return err
 }
@@ -199,7 +199,7 @@ func (b *Bot) handleResumeCommand(ctx *discord.CommandContext) error {
 // handleSkipCommand handles the skip command.
 func (b *Bot) handleSkipCommand(ctx *discord.CommandContext) error {
 	startTime := time.Now()
-	
+
 	queue := b.queueManager.GetQueue(ctx.GuildID)
 	if !queue.IsPlaying() {
 		return errors.NewValidationError("Nothing is currently playing")
@@ -207,14 +207,14 @@ func (b *Bot) handleSkipCommand(ctx *discord.CommandContext) error {
 
 	current := queue.Current()
 	queue.Skip()
-	
+
 	response := "⏭️ Skipped the current song"
 	if current != nil {
 		response = fmt.Sprintf("⏭️ Skipped **%s**", current.Title)
 	}
-	
+
 	_, err := ctx.Session.ChannelMessageSend(ctx.ChannelID, response)
-	
+
 	metrics.RecordCommand("skip", ctx.UserID, err == nil, time.Since(startTime))
 	return err
 }
@@ -222,13 +222,13 @@ func (b *Bot) handleSkipCommand(ctx *discord.CommandContext) error {
 // handleStopCommand handles the stop command.
 func (b *Bot) handleStopCommand(ctx *discord.CommandContext) error {
 	startTime := time.Now()
-	
+
 	// Disconnect from voice and clear queue
 	b.audioPlayer.Disconnect(ctx.GuildID)
 	b.queueManager.ClearQueue(ctx.GuildID)
-	
+
 	_, err := ctx.Session.ChannelMessageSend(ctx.ChannelID, "⏹️ Stopped music and disconnected from voice channel")
-	
+
 	metrics.RecordCommand("stop", ctx.UserID, err == nil, time.Since(startTime))
 	return err
 }
@@ -236,9 +236,9 @@ func (b *Bot) handleStopCommand(ctx *discord.CommandContext) error {
 // handleQueueCommand handles the queue command.
 func (b *Bot) handleQueueCommand(ctx *discord.CommandContext) error {
 	startTime := time.Now()
-	
+
 	queue := b.queueManager.GetQueue(ctx.GuildID)
-	
+
 	if queue.Current() == nil && queue.IsEmpty() {
 		_, err := ctx.Session.ChannelMessageSend(ctx.ChannelID, "📭 The queue is empty")
 		metrics.RecordCommand("queue", ctx.UserID, err == nil, time.Since(startTime))
@@ -247,7 +247,7 @@ func (b *Bot) handleQueueCommand(ctx *discord.CommandContext) error {
 
 	embed := b.buildQueueEmbed(queue)
 	_, err := ctx.Session.ChannelMessageSendEmbed(ctx.ChannelID, embed)
-	
+
 	metrics.RecordCommand("queue", ctx.UserID, err == nil, time.Since(startTime))
 	return err
 }
@@ -255,7 +255,7 @@ func (b *Bot) handleQueueCommand(ctx *discord.CommandContext) error {
 // handleVolumeCommand handles the volume command.
 func (b *Bot) handleVolumeCommand(ctx *discord.CommandContext) error {
 	startTime := time.Now()
-	
+
 	if len(ctx.Args) == 0 {
 		// Show current volume
 		volume := b.audioPlayer.GetVolume(ctx.GuildID)
@@ -276,9 +276,9 @@ func (b *Bot) handleVolumeCommand(ctx *discord.CommandContext) error {
 
 	volumeFloat := float64(volume) / 100.0
 	b.audioPlayer.SetVolume(ctx.GuildID, volumeFloat)
-	
+
 	_, err := ctx.Session.ChannelMessageSend(ctx.ChannelID, fmt.Sprintf("🔊 Volume set to %d%%", volume))
-	
+
 	metrics.RecordCommand("volume", ctx.UserID, err == nil, time.Since(startTime))
 	return err
 }
@@ -352,7 +352,7 @@ func (b *Bot) buildQueueEmbed(queue *Queue) *discordgo.MessageEmbed {
 		if queue.IsPaused() {
 			status = "⏸️ Paused"
 		}
-		
+
 		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 			Name:   fmt.Sprintf("%s Now", status),
 			Value:  fmt.Sprintf("**%s**\nRequested by: <@%s>", current.Title, current.RequesterID),
@@ -395,7 +395,7 @@ func (b *Bot) buildQueueEmbed(queue *Queue) *discordgo.MessageEmbed {
 
 func (b *Bot) handlePlaylistCreate(ctx *discord.CommandContext) error {
 	startTime := time.Now()
-	
+
 	if len(ctx.Args) < 2 {
 		return errors.NewValidationError("Please provide a playlist name")
 	}
@@ -413,14 +413,14 @@ func (b *Bot) handlePlaylistCreate(ctx *discord.CommandContext) error {
 
 	response := fmt.Sprintf("✅ Created playlist **%s** (ID: %d)", name, playlistID)
 	_, err = ctx.Session.ChannelMessageSend(ctx.ChannelID, response)
-	
+
 	metrics.RecordCommand("playlist_create", ctx.UserID, err == nil, time.Since(startTime))
 	return err
 }
 
 func (b *Bot) handlePlaylistList(ctx *discord.CommandContext) error {
 	startTime := time.Now()
-	
+
 	playlists, err := b.database.GetUserPlaylists(ctx.UserID, ctx.GuildID)
 	if err != nil {
 		logging.LogError(logging.WithComponent("playlist"), err, "Failed to list playlists")
@@ -434,7 +434,7 @@ func (b *Bot) handlePlaylistList(ctx *discord.CommandContext) error {
 	}
 
 	embed := discord.CreateEmbed(fmt.Sprintf("🎵 %s's Playlists", ctx.Username), "", "info")
-	
+
 	displayCount := len(playlists)
 	if displayCount > 10 {
 		displayCount = 10
@@ -459,7 +459,7 @@ func (b *Bot) handlePlaylistList(ctx *discord.CommandContext) error {
 	}
 
 	_, err = ctx.Session.ChannelMessageSendEmbed(ctx.ChannelID, embed)
-	
+
 	metrics.RecordCommand("playlist_list", ctx.UserID, err == nil, time.Since(startTime))
 	return err
 }

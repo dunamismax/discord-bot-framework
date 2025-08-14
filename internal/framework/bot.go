@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/sawyer/discord-bot-framework/internal/config"
-	"github.com/sawyer/discord-bot-framework/internal/errors"
-	"github.com/sawyer/discord-bot-framework/internal/logging"
+	"github.com/sawyer/go-discord-bots/internal/config"
+	"github.com/sawyer/go-discord-bots/internal/errors"
+	"github.com/sawyer/go-discord-bots/internal/logging"
 )
 
 // CommandHandler represents a function that handles Discord bot commands.

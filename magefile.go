@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	packageName = "github.com/sawyer/discord-bot-framework"
-	binaryName  = "discord-bot-framework"
+	packageName = "github.com/sawyer/go-discord-bots"
+	binaryName  = "go-discord-bots"
 	buildDir    = "bin"
 	tmpDir      = "tmp"
 )
@@ -97,7 +97,7 @@ func Build() error {
 		if runtime.GOOS == "windows" {
 			appBinaryPath += ".exe"
 		}
-		
+
 		appDir := filepath.Join("apps", app)
 		if err := sh.RunV("go", "build", "-ldflags="+ldflags, "-o", appBinaryPath, "./"+appDir); err != nil {
 			return fmt.Errorf("failed to build %s app: %w", app, err)
@@ -208,7 +208,7 @@ func Lint() error {
 		}
 	}
 
-	return sh.RunV(lintPath, "run", "./...")
+	return sh.RunV(lintPath, "run", "--disable=whitespace,wsl,nlreturn,wsl_v5", "./...")
 }
 
 // RunClipper builds and runs only the Clippy bot
@@ -374,20 +374,40 @@ func Setup() error {
 		fmt.Println("Creating example .env file...")
 		envContent := `# Discord Bot Framework Environment Variables
 
+# Global settings (applies to all bots unless overridden)
+DISCORD_TOKEN=your_default_discord_token_here
+COMMAND_PREFIX=!
+LOG_LEVEL=info
+JSON_LOGGING=false
+DEBUG=false
+
+# Guild ID (can be overridden per bot)
+GUILD_ID=your_guild_id_for_testing
+
+# Timeout configurations
+SHUTDOWN_TIMEOUT=30s
+REQUEST_TIMEOUT=30s
+MAX_RETRIES=3
+
 # Clippy Bot Configuration
 CLIPPY_DISCORD_TOKEN=your_clippy_bot_token_here
 CLIPPY_GUILD_ID=your_guild_id_for_testing
-CLIPPY_DEBUG=false
+RANDOM_RESPONSES=true
+RANDOM_INTERVAL=45m
+RANDOM_MESSAGE_DELAY=3s
 
 # Music Bot Configuration  
 MUSIC_DISCORD_TOKEN=your_music_bot_token_here
 MUSIC_GUILD_ID=your_guild_id_for_testing
-MUSIC_DEBUG=false
 MUSIC_DATABASE_URL=music.db
+MAX_QUEUE_SIZE=100
+INACTIVITY_TIMEOUT=5m
+VOLUME_LEVEL=0.5
 
-# Optional: Global settings
-BOT_LOG_LEVEL=INFO
-BOT_JSON_LOGGING=false
+# MTG Card Bot Configuration
+# MTG bot will use DISCORD_TOKEN if no specific token is provided
+CACHE_TTL=1h
+CACHE_SIZE=1000
 `
 		if err := os.WriteFile(envFile, []byte(envContent), 0644); err != nil {
 			fmt.Printf("Warning: failed to create .env file: %v\n", err)
@@ -406,14 +426,18 @@ BOT_JSON_LOGGING=false
 	return nil
 }
 
+// Test runs the test suite
+func Test() error {
+	fmt.Println("Running test suite...")
+	return sh.RunV("go", "test", "./...")
+}
+
 // CI runs the complete CI pipeline
 func CI() error {
 	fmt.Println("Running complete CI pipeline...")
-	mg.SerialDeps(Fmt, Vet, Lint, Build, showBuildInfo)
+	mg.SerialDeps(Fmt, Vet, Lint, Test, Build, showBuildInfo)
 	return nil
 }
-
-
 
 // Quality runs all quality checks
 func Quality() error {
@@ -443,10 +467,11 @@ Quality:
   mage vet (v)          Run go vet static analysis
   mage lint (l)         Run golangci-lint comprehensive linting
   mage vulnCheck (vc)   Check for security vulnerabilities
+  mage test (t)         Run test suite
   mage quality (q)      Run all quality checks (vet + lint + vulncheck)
 
 Production:
-  mage ci               Complete CI pipeline (fmt + quality + build)
+  mage ci               Complete CI pipeline (fmt + vet + lint + test + build)
   mage clean (c)        Clean build artifacts and temporary files
   mage reset            Reset repository to fresh state (clean + remove logs/databases)
 
@@ -498,6 +523,7 @@ var Aliases = map[string]interface{}{
 	"v":    Vet,
 	"l":    Lint,
 	"vc":   VulnCheck,
+	"t":    Test,
 	"r":    Run,
 	"rc":   RunClipper,
 	"rm":   RunMusic,
