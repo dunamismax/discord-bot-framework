@@ -1,18 +1,12 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
-	"os/signal"
+	"os/exec"
+	"path/filepath"
 	"strings"
-	"syscall"
-	"time"
 
-	"github.com/sawyer/discord-bot-framework/internal/bots/clippy"
-	"github.com/sawyer/discord-bot-framework/internal/bots/music"
-	"github.com/sawyer/discord-bot-framework/internal/config"
-	"github.com/sawyer/discord-bot-framework/internal/logging"
 	"github.com/spf13/cobra"
 )
 
@@ -43,151 +37,87 @@ func main() {
 }
 
 func runBot(cmd *cobra.Command, args []string) {
-	// Initialize logging
-	logging.InitializeLogger("INFO", false)
-	if debugFlag {
-		logging.InitializeLogger("DEBUG", false)
+	fmt.Printf("Starting Discord Bot Framework - Bot: %s\n", botFlag)
+
+	// Get the directory where the main binary is located
+	binaryDir := filepath.Dir(os.Args[0])
+	if binaryDir == "." {
+		// If running with 'go run', use current directory
+		binaryDir, _ = os.Getwd()
 	}
-
-	logger := logging.WithComponent("main")
-
-	// Load configuration
-	cfg, err := config.Load(configFlag)
-	if err != nil {
-		logger.Error("Failed to load configuration", "error", err)
-		os.Exit(1)
-	}
-
-	if err := cfg.Validate(); err != nil {
-		logger.Error("Invalid configuration", "error", err)
-		os.Exit(1)
-	}
-
-	logger.Info("Starting Discord Bot Framework", "bot", botFlag, "config", configFlag)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// Handle graceful shutdown
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
-
-	go func() {
-		sig := <-sigChan
-		logger.Info("Received signal, shutting down", "signal", sig.String())
-		cancel()
-	}()
 
 	switch strings.ToLower(botFlag) {
 	case "clippy":
-		if err := runClippyBot(ctx, cfg); err != nil {
-			logger.Error("Clippy bot failed", "error", err)
+		if err := runSingleApp("clippy", binaryDir); err != nil {
+			fmt.Printf("Error running Clippy bot: %v\n", err)
 			os.Exit(1)
 		}
 	case "music":
-		if err := runMusicBot(ctx, cfg); err != nil {
-			logger.Error("Music bot failed", "error", err)
+		if err := runSingleApp("music", binaryDir); err != nil {
+			fmt.Printf("Error running Music bot: %v\n", err)
+			os.Exit(1)
+		}
+	case "mtg":
+		if err := runSingleApp("mtg-card-bot", binaryDir); err != nil {
+			fmt.Printf("Error running MTG Card bot: %v\n", err)
 			os.Exit(1)
 		}
 	case "all":
-		if err := runAllBots(ctx, cfg); err != nil {
-			logger.Error("Failed to run bots", "error", err)
+		if err := runAllApps(binaryDir); err != nil {
+			fmt.Printf("Error running all bots: %v\n", err)
 			os.Exit(1)
 		}
 	default:
-		logger.Error("Invalid bot specified", "bot", botFlag)
+		fmt.Printf("Invalid bot specified: %s\n", botFlag)
+		fmt.Println("Valid options: clippy, music, mtg, all")
 		os.Exit(1)
 	}
-
-	logger.Info("Bot framework shutdown complete")
 }
 
-func runClippyBot(ctx context.Context, cfg *config.Config) error {
-	logger := logging.WithComponent("clippy-runner")
-	logger.Info("Starting Clippy bot")
-
-	bot, err := clippy.NewBot(cfg.Clippy)
-	if err != nil {
-		return fmt.Errorf("failed to create Clippy bot: %w", err)
+func runSingleApp(appName, binaryDir string) error {
+	appPath := filepath.Join("bin", appName)
+	
+	// Check if binary exists
+	if _, err := os.Stat(appPath); os.IsNotExist(err) {
+		return fmt.Errorf("app binary not found: %s (run 'mage build' first)", appPath)
 	}
 
-	if err := bot.Start(); err != nil {
-		return fmt.Errorf("failed to start Clippy bot: %w", err)
-	}
+	fmt.Printf("Starting %s bot...\n", appName)
+	
+	cmd := exec.Command(appPath)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
 
-	logger.Info("Clippy bot is running")
-
-	<-ctx.Done()
-
-	logger.Info("Shutting down Clippy bot")
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer shutdownCancel()
-
-	if err := bot.Stop(shutdownCtx); err != nil {
-		logger.Error("Error stopping Clippy bot", "error", err)
-	} else {
-		logger.Info("Clippy bot stopped successfully")
-	}
-
-	return nil
+	return cmd.Run()
 }
 
-func runMusicBot(ctx context.Context, cfg *config.Config) error {
-	logger := logging.WithComponent("music-runner")
-	logger.Info("Starting Music bot")
-
-	bot, err := music.NewBot(cfg.Music)
-	if err != nil {
-		return fmt.Errorf("failed to create Music bot: %w", err)
-	}
-
-	if err := bot.Start(); err != nil {
-		return fmt.Errorf("failed to start Music bot: %w", err)
-	}
-
-	logger.Info("Music bot is running")
-
-	<-ctx.Done()
-
-	logger.Info("Shutting down Music bot")
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer shutdownCancel()
-
-	if err := bot.Stop(shutdownCtx); err != nil {
-		logger.Error("Error stopping Music bot", "error", err)
-	} else {
-		logger.Info("Music bot stopped successfully")
-	}
-
-	return nil
-}
-
-func runAllBots(ctx context.Context, cfg *config.Config) error {
-	logger := logging.WithComponent("all-bots-runner")
-	logger.Info("Starting all bots")
-
-	errChan := make(chan error, 2)
-
-	// Start Clippy bot
-	go func() {
-		if err := runClippyBot(ctx, cfg); err != nil {
-			errChan <- fmt.Errorf("clippy bot error: %w", err)
+func runAllApps(binaryDir string) error {
+	apps := []string{"clippy", "music", "mtg-card-bot"}
+	
+	fmt.Println("Starting all bots...")
+	
+	// Start all apps concurrently
+	for _, app := range apps {
+		appPath := filepath.Join("bin", app)
+		
+		// Check if binary exists
+		if _, err := os.Stat(appPath); os.IsNotExist(err) {
+			fmt.Printf("Warning: %s binary not found, skipping\n", app)
+			continue
 		}
-	}()
 
-	// Start Music bot
-	go func() {
-		if err := runMusicBot(ctx, cfg); err != nil {
-			errChan <- fmt.Errorf("music bot error: %w", err)
-		}
-	}()
-
-	// Wait for context cancellation or error
-	select {
-	case <-ctx.Done():
-		logger.Info("Context cancelled, all bots will shut down")
-		return nil
-	case err := <-errChan:
-		return err
+		go func(appName string) {
+			fmt.Printf("Starting %s...\n", appName)
+			cmd := exec.Command(filepath.Join("bin", appName))
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				fmt.Printf("Error running %s: %v\n", appName, err)
+			}
+		}(app)
 	}
+
+	// Keep the main process running
+	select {}
 }

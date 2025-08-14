@@ -67,7 +67,7 @@ func loadEnvFile() error {
 	return scanner.Err()
 }
 
-// Build builds the Discord bot framework binary
+// Build builds all Discord bot applications
 func Build() error {
 	fmt.Println("Building Discord bot framework...")
 
@@ -75,6 +75,7 @@ func Build() error {
 		return fmt.Errorf("failed to create build directory: %w", err)
 	}
 
+	// Build the main launcher
 	ldflags := "-s -w -X main.version=1.0.0 -X main.buildTime=" + getCurrentTime()
 	binaryPath := filepath.Join(buildDir, binaryName)
 
@@ -83,7 +84,28 @@ func Build() error {
 		binaryPath += ".exe"
 	}
 
-	return sh.RunV("go", "build", "-ldflags="+ldflags, "-o", binaryPath, ".")
+	fmt.Println("Building main launcher...")
+	if err := sh.RunV("go", "build", "-ldflags="+ldflags, "-o", binaryPath, "."); err != nil {
+		return fmt.Errorf("failed to build main launcher: %w", err)
+	}
+
+	// Build individual apps
+	apps := []string{"clippy", "music", "mtg-card-bot"}
+	for _, app := range apps {
+		fmt.Printf("Building %s app...\n", app)
+		appBinaryPath := filepath.Join(buildDir, app)
+		if runtime.GOOS == "windows" {
+			appBinaryPath += ".exe"
+		}
+		
+		appDir := filepath.Join("apps", app)
+		if err := sh.RunV("go", "build", "-ldflags="+ldflags, "-o", appBinaryPath, "./"+appDir); err != nil {
+			return fmt.Errorf("failed to build %s app: %w", app, err)
+		}
+	}
+
+	fmt.Println("All builds completed successfully!")
+	return nil
 }
 
 func getCurrentTime() string {
@@ -198,12 +220,12 @@ func RunClipper() error {
 	mg.SerialDeps(Build)
 	fmt.Println("Starting Clippy bot...")
 
-	binaryPath := filepath.Join(buildDir, binaryName)
+	binaryPath := filepath.Join(buildDir, "clippy")
 	if runtime.GOOS == "windows" {
 		binaryPath += ".exe"
 	}
 
-	return sh.RunV(binaryPath, "--bot", "clippy")
+	return sh.RunV(binaryPath)
 }
 
 // RunMusic builds and runs only the Music bot
@@ -215,12 +237,29 @@ func RunMusic() error {
 	mg.SerialDeps(Build)
 	fmt.Println("Starting Music bot...")
 
-	binaryPath := filepath.Join(buildDir, binaryName)
+	binaryPath := filepath.Join(buildDir, "music")
 	if runtime.GOOS == "windows" {
 		binaryPath += ".exe"
 	}
 
-	return sh.RunV(binaryPath, "--bot", "music")
+	return sh.RunV(binaryPath)
+}
+
+// RunMTG builds and runs only the MTG Card bot
+func RunMTG() error {
+	if err := loadEnvFile(); err != nil {
+		return fmt.Errorf("failed to load .env file: %w", err)
+	}
+
+	mg.SerialDeps(Build)
+	fmt.Println("Starting MTG Card bot...")
+
+	binaryPath := filepath.Join(buildDir, "mtg-card-bot")
+	if runtime.GOOS == "windows" {
+		binaryPath += ".exe"
+	}
+
+	return sh.RunV(binaryPath)
 }
 
 // Run builds and runs all Discord bots
@@ -416,6 +455,7 @@ Development:
   mage run (r)          Build and run all bots in production mode
   mage runClipper (rc)  Build and run only Clippy bot
   mage runMusic (rm)    Build and run only Music bot
+  mage runMTG (rmtg)    Build and run only MTG Card bot
   mage build (b)        Build production binary
 
 Quality:
@@ -475,18 +515,19 @@ func showBuildInfo() error {
 
 // Aliases for common commands
 var Aliases = map[string]interface{}{
-	"b":  Build,
-	"f":  Fmt,
-	"v":  Vet,
-	"l":  Lint,
-	"vc": VulnCheck,
-	"r":  Run,
-	"rc": RunClipper,
-	"rm": RunMusic,
-	"d":  Dev,
-	"c":  Clean,
-	"s":  Setup,
-	"q":  Quality,
-	"t":  Test,
-	"h":  Help,
+	"b":    Build,
+	"f":    Fmt,
+	"v":    Vet,
+	"l":    Lint,
+	"vc":   VulnCheck,
+	"r":    Run,
+	"rc":   RunClipper,
+	"rm":   RunMusic,
+	"rmtg": RunMTG,
+	"d":    Dev,
+	"c":    Clean,
+	"s":    Setup,
+	"q":    Quality,
+	"t":    Test,
+	"h":    Help,
 }

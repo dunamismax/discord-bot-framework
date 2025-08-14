@@ -12,6 +12,7 @@ A modern, scalable Discord bot framework written in Go, supporting multiple bot 
 ## Features
 
 ### Core Framework
+
 - **Multi-bot architecture** - Run multiple Discord bots from a single application
 - **Structured logging** - Comprehensive logging with configurable levels and formats
 - **Configuration management** - JSON-based configuration with environment variable overrides
@@ -20,12 +21,14 @@ A modern, scalable Discord bot framework written in Go, supporting multiple bot 
 - **Command cooldowns** - Per-user, per-command cooldown system
 
 ### Clippy Bot
+
 - **Unhinged responses** - Classic Microsoft Clippy with modern chaotic energy
 - **Random messages** - Periodic random responses in channels
 - **Slash commands** - `/clippy`, `/clippy_wisdom`, `/clippy_help`
 - **Interactive elements** - Buttons and embeds for enhanced user experience
 
 ### Music Bot
+
 - **YouTube playback** - Play music from YouTube URLs or search queries
 - **Queue management** - Add, skip, pause, resume, and view queue
 - **Playlist system** - Create, manage, and play custom playlists (with database)
@@ -72,23 +75,27 @@ discord-bot-framework/
 ### Installation
 
 1. **Clone the repository:**
+
    ```bash
    git clone <repository-url>
    cd discord-bot-framework
    ```
 
 2. **Install Mage (if not already installed):**
+
    ```bash
    go install github.com/magefile/mage@latest
    ```
 
 3. **Setup development environment:**
+
    ```bash
    # This will install all tools, download dependencies, and create .env file
    mage setup
    ```
 
 4. **Configure your bots:**
+
    ```bash
    # Edit the .env file with your Discord bot tokens
    nano .env
@@ -141,17 +148,20 @@ export MUSIC_DEBUG="true"
 The project uses [Mage](https://magefile.org/) for build automation and task management.
 
 1. **Setup development environment:**
+
    ```bash
    # Install development tools and create .env file
    mage setup
    ```
 
 2. **Build the application:**
+
    ```bash
    mage build
    ```
 
 3. **Run the bots:**
+
    ```bash
    # Run all bots in production mode
    mage run
@@ -167,6 +177,7 @@ The project uses [Mage](https://magefile.org/) for build automation and task man
    ```
 
 4. **Quality checks:**
+
    ```bash
    # Format code and tidy modules
    mage fmt
@@ -179,6 +190,7 @@ The project uses [Mage](https://magefile.org/) for build automation and task man
    ```
 
 5. **Additional commands:**
+
    ```bash
    # Clean build artifacts
    mage clean
@@ -198,6 +210,7 @@ The project uses [Mage](https://magefile.org/) for build automation and task man
 ### Music Bot Commands
 
 **Basic Playback:**
+
 - `/play <query>` - Play music from YouTube URL or search query
 - `/pause` - Pause the current song
 - `/resume` - Resume the current song
@@ -206,6 +219,7 @@ The project uses [Mage](https://magefile.org/) for build automation and task man
 - `/queue` - Show the current music queue
 
 **Playlist Management** (requires database):
+
 - `/playlist_create <name>` - Create a new playlist
 - `/playlist_list` - List your playlists
 - `/playlist_show <id>` - Show songs in a playlist
@@ -320,6 +334,7 @@ Enable debug mode for verbose logging:
 ```
 
 Or set in config:
+
 ```json
 {
   "clippy": {
@@ -332,6 +347,7 @@ Or set in config:
 ### Logs
 
 The application uses structured logging. Key log fields:
+
 - `component` - Which part of the system generated the log
 - `error` - Error details when applicable
 - `user_id` - Discord user ID for command logs
@@ -353,6 +369,7 @@ This project is licensed under the MIT License - see the original project licens
 ## Support
 
 For issues and questions:
+
 1. Check the troubleshooting section
 2. Review the logs with debug mode enabled
 3. Create an issue with detailed information about the problem

@@ -76,18 +76,18 @@ func Load(configPath string) (*Config, error) {
 	// Start with defaults
 	cfg := DefaultConfig()
 
-	// Check if config file exists
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return cfg, nil // Return defaults if no config file
-	}
+	// Load from config file if provided and exists
+	if configPath != "" {
+		if _, err := os.Stat(configPath); err == nil {
+			data, err := os.ReadFile(configPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read config file: %w", err)
+			}
 
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read config file: %w", err)
-	}
-
-	if err := json.Unmarshal(data, cfg); err != nil {
-		return nil, fmt.Errorf("failed to parse config file: %w", err)
+			if err := json.Unmarshal(data, cfg); err != nil {
+				return nil, fmt.Errorf("failed to parse config file: %w", err)
+			}
+		}
 	}
 
 	// Override with environment variables if set
