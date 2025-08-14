@@ -2,7 +2,7 @@
 
 This document lists available slash commands for each independent bot app in this repository. There is no shared command surface between bots.
 
-## 🤖 Clippy Bot (Slash Commands)
+## Clippy Bot (Slash Commands)
 
 - /clippy: Get an unhinged Clippy response.
 - /clippy_wisdom: Receive Clippy’s questionable wisdom.
@@ -16,7 +16,7 @@ Required invite scopes/permissions
 - Scopes: bot, applications.commands
 - Permissions: Send Messages, Use Application Commands, Add Reactions, Read Message History
 
-## 🎵 Music Bot (Slash Commands)
+## Music Bot (Slash Commands)
 
 Playback
 - /play query:<url or search>: Play from YouTube (must be in a voice channel).
@@ -43,7 +43,7 @@ Required invite scopes/permissions
 - Scopes: bot, applications.commands
 - Permissions: Send Messages, Use Application Commands, Connect, Speak, Read Message History
 
-## ❗ Note on the MTG Card Bot
+## Note on the MTG Card Bot
 
 The MTG Card Bot uses prefix commands (default "!") and does not register slash commands. See DISCORD_BOTS_CHEATSHEET.md for its command list and usage.
 

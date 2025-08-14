@@ -6,8 +6,8 @@ We release patches for security vulnerabilities in the following versions:
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 2.0.x   | :white_check_mark: |
-| 1.x.x   | :x:                |
+| 2.0.x   | Supported |
+| 1.x.x   | Not Supported |
 
 ## Reporting a Vulnerability
 
@@ -54,11 +54,10 @@ Instead, please send an email to [security@discord-bot-framework.com](mailto:sec
 
 ### Deployment Security
 
-- **Use secure container images**
-- **Run containers as non-root users**
-- **Enable security contexts in Kubernetes**
-- **Use network policies to restrict traffic**
-- **Regularly update dependencies**
+- **Run applications as non-root users**
+- **Use secure systemd service configurations**
+- **Restrict network access where appropriate**
+- **Regularly update dependencies with `mage vulnCheck`**
 
 ### Monitoring and Alerting
 
@@ -92,10 +91,10 @@ Instead, please send an email to [security@discord-bot-framework.com](mailto:sec
 
 ### Infrastructure Security
 
-- Container security scanning
-- Dependency vulnerability scanning
-- Automated security updates
-- Secure deployment practices
+- Binary security scanning
+- Dependency vulnerability scanning with `mage vulnCheck`
+- Manual security updates via `mage setup`
+- Secure deployment practices with mage commands
 
 ## Vulnerability Disclosure Timeline
 

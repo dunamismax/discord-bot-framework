@@ -1,13 +1,14 @@
 # Discord Bot Deployment Guide
 
-This guide walks you through setting up and deploying the Clippy Bot and Music Bot to your Discord server.
+This guide walks you through setting up and deploying the Discord Bot Framework to your Discord server using Go and mage build tools.
 
 ## Prerequisites
 
-- Python 3.12+ installed (⚠️ Python 3.13+ not supported due to py-cord voice dependencies)
+- Go 1.23+ installed - [Download Go](https://golang.org/dl/)
 - Discord account with server admin permissions
-- Linux/macOS environment (Ubuntu recommended for production)
+- Linux/macOS/Windows environment (Ubuntu recommended for production)
 - FFmpeg installed (for music bot voice functionality)
+- mage build tool - `go install github.com/magefile/mage@latest`
 
 ## Step 1: Create Discord Applications
 
@@ -18,16 +19,19 @@ This guide walks you through setting up and deploying the Clippy Bot and Music B
 
 ### 1.2 Create Bot Applications
 
-Create **two separate applications** (one for each bot):
+Create **separate applications** for each bot you plan to use:
+
+**For MTG Card Bot:**
+1. Click "New Application"
+2. Name it "MTG Card Bot" (or your preferred name)
+3. Click "Create"
 
 **For Clippy Bot:**
-
 1. Click "New Application"
 2. Name it "Clippy Bot" (or your preferred name)
 3. Click "Create"
 
 **For Music Bot:**
-
 1. Click "New Application"
 2. Name it "Music Bot" (or your preferred name)
 3. Click "Create"
@@ -39,10 +43,10 @@ For **each application**:
 1. Go to the "Bot" section in the left sidebar
 2. Click "Add Bot" if not already created
 3. **Copy the bot token** (click "Reset Token" if needed, then copy)
-   - ⚠️ **Keep these tokens secure** - treat them like passwords
+   - **Keep these tokens secure** - treat them like passwords
 4. Under "Privileged Gateway Intents":
-   - ✅ Enable "Message Content Intent"
-   - ✅ Enable "Server Members Intent" (required for Music Bot voice features)
+   - Enable "Message Content Intent" (required for MTG Card Bot prefix commands)
+   - Enable "Server Members Intent" (recommended for Music Bot voice features)
 
 ## Step 2: Get Your Server ID
 
@@ -52,193 +56,221 @@ For **each application**:
 3. Click "Copy Server ID"
 4. Save this ID - you'll need it for configuration
 
-## Step 3: Install Dependencies
+## Step 3: Install and Setup
 
-### 3.1 Install uv Package Manager
-
-```bash
-# Install uv (ultra-fast Python package manager)
-curl -LsSf https://astral.sh/uv/install.sh | sh
-source ~/.bashrc
-
-# Verify installation
-uv --version
-```
-
-### 3.2 Install Project Dependencies
+### 3.1 Clone and Setup Development Environment
 
 ```bash
-# Navigate to project directory
+# Clone repository
+git clone <repository-url>
 cd discord-bot-framework
 
-# Install Python 3.12 and all dependencies
-uv python install 3.12
-uv sync --all-extras
-
-# Verify installation
-uv run python validate.py
+# Setup development environment (installs tools, creates configs)
+mage setup
 ```
 
-## Step 4: Configure Bot Tokens
-
-### Option A: Environment Variables (Recommended)
+### 3.2 Configure Environment Variables
 
 Create a `.env` file in the project root:
 
 ```bash
-# Copy example configuration
-cp config.example.json .env.example
-
 # Create your .env file
 cat > .env << 'EOF'
-# Clippy Bot Configuration
-CLIPPY_BOT_TOKEN=your_clippy_bot_token_here
+# MTG Card Bot Configuration
+DISCORD_TOKEN=your_mtg_bot_token_here
+LOG_LEVEL=info
+JSON_LOGGING=false
+DEBUG=false
+
+# Clippy Bot Configuration  
+CLIPPY_DISCORD_TOKEN=your_clippy_bot_token_here
 CLIPPY_GUILD_ID=your_server_id_here
 CLIPPY_DEBUG=false
-CLIPPY_HEALTH_CHECK_PORT=8081
 
 # Music Bot Configuration
-MUSIC_BOT_TOKEN=your_music_bot_token_here
+MUSIC_DISCORD_TOKEN=your_music_bot_token_here
 MUSIC_GUILD_ID=your_server_id_here
 MUSIC_DEBUG=false
-MUSIC_HEALTH_CHECK_PORT=8082
-MUSIC_MAX_PLAYLIST_SIZE=100
-MUSIC_AUTO_DISCONNECT_TIMEOUT=300
+MUSIC_DATABASE_URL=music.db
 EOF
 ```
 
 Replace the placeholder values:
-
+- `your_mtg_bot_token_here` → Your MTG Card Bot token from Step 1.3
 - `your_clippy_bot_token_here` → Your Clippy Bot token from Step 1.3
-- `your_music_bot_token_here` → Your Music Bot token from Step 1.3  
+- `your_music_bot_token_here` → Your Music Bot token from Step 1.3
 - `your_server_id_here` → Your server ID from Step 2
 
-### Option B: JSON Configuration
+## Step 4: Invite Bots to Your Server
 
-Alternatively, copy and edit the JSON config:
-
-```bash
-cp config.example.json config.json
-# Edit config.json with your tokens and server ID
-```
-
-## Step 5: Invite Bots to Your Server
-
-### 5.1 Generate Invite URLs
+### 4.1 Generate Invite URLs
 
 For **each bot application** in the Developer Portal:
 
 1. Go to OAuth2 → URL Generator
-2. Select Scopes:
-   - ✅ `bot`
-   - ✅ `applications.commands`
+2. Select Scopes based on bot type:
+
+   **For MTG Card Bot:**
+   - `bot` (prefix commands only)
+   
+   **For Clippy Bot and Music Bot:**
+   - `bot`
+   - `applications.commands` (for slash commands)
 
 3. Select Bot Permissions:
 
+   **For MTG Card Bot:**
+   - Send Messages
+   - Embed Links
+   - Attach Files
+   - Read Message History
+
    **For Clippy Bot:**
-   - ✅ Send Messages
-   - ✅ Use Slash Commands
-   - ✅ Read Message History
-   - ✅ Add Reactions
-   - ✅ Embed Links
+   - Send Messages
+   - Use Slash Commands
+   - Read Message History
+   - Add Reactions
+   - Embed Links
 
    **For Music Bot:**
-   - ✅ Send Messages
-   - ✅ Use Slash Commands
-   - ✅ Read Message History
-   - ✅ Connect (to voice channels)
-   - ✅ Speak (in voice channels)
-   - ✅ Use Voice Activity
+   - Send Messages
+   - Use Slash Commands
+   - Read Message History
+   - Connect (to voice channels)
+   - Speak (in voice channels)
+   - Use Voice Activity
 
 4. Copy the generated URL
 5. Open the URL in your browser
 6. Select your server and authorize the bot
 
-### 5.2 Verify Bot Presence
+### 4.2 Verify Bot Presence
 
-Check that both bots appear in your server's member list (they'll show as offline until started).
+Check that your bots appear in your server's member list (they'll show as offline until started).
 
-## Step 6: Start the Bots
+## Step 5: Build and Run the Bots
 
 ### Development Mode
 
-Start both bots for testing:
-
 ```bash
-# Start all bots with management script
-./scripts/start-all.sh
+# Build all applications
+mage build
 
-# Or start individually for debugging
-uv run python apps/clippy_bot/main.py
-uv run python apps/music_bot/main.py
+# Run individual bots for testing
+mage runMTG        # MTG Card Bot
+mage runClipper    # Clippy Bot  
+mage runMusic      # Music Bot
+
+# Run all bots together (not recommended for production)
+mage run
+
+# Run with debug logging
+mage dev
 ```
 
-### Production Mode (systemd services)
+### Production Mode
 
-For production deployment on Ubuntu:
+For production deployment on Ubuntu using systemd:
+
+1. **Create systemd service files** (example for MTG Card Bot):
 
 ```bash
-# Install as system services
-sudo ./systemd/install-services.sh
+# Create service file
+sudo tee /etc/systemd/system/mtg-card-bot.service > /dev/null << 'EOF'
+[Unit]
+Description=MTG Card Bot
+After=network.target
+
+[Service]
+Type=simple
+User=botuser
+WorkingDirectory=/path/to/discord-bot-framework
+Environment=DISCORD_TOKEN=your_token_here
+ExecStart=/path/to/discord-bot-framework/bin/mtg-card-bot
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+```
+
+2. **Start and enable services:**
+
+```bash
+# Reload systemd
+sudo systemctl daemon-reload
 
 # Start services
-sudo systemctl start clippy-bot music-bot
+sudo systemctl start mtg-card-bot
 
 # Enable auto-start on boot
-sudo systemctl enable clippy-bot music-bot
+sudo systemctl enable mtg-card-bot
 
 # Check service status
-sudo systemctl status clippy-bot music-bot
+sudo systemctl status mtg-card-bot
 
 # View logs
-sudo journalctl -u clippy-bot -f
-sudo journalctl -u music-bot -f
+sudo journalctl -u mtg-card-bot -f
 ```
 
-## Step 7: Test Bot Functionality
+## Step 6: Test Bot Functionality
 
-### 7.1 Test Clippy Bot
+### 6.1 Test MTG Card Bot
 
 In any text channel:
+- `!lightning bolt` - Look up a Magic card
+- `!random` - Get a random card
+- `!help` - Show help and examples
+- `!stats` - Show bot performance metrics
 
+### 6.2 Test Clippy Bot
+
+In any text channel:
 - `/clippy` - Get chaotic assistance
 - `/clippy_wisdom` - Receive questionable life advice
-- `/clippy_poll` - Create polls with Clippy's options
 - `/clippy_help` - Interactive help with buttons
 
-### 7.2 Test Music Bot
+### 6.3 Test Music Bot
 
 Join a voice channel, then in any text channel:
-
 - `/play Never Gonna Give You Up` - Play a song
 - `/pause` / `/resume` - Control playback
 - `/skip` - Skip current song
-- `/playlist create MyPlaylist` - Create a playlist
-- `/playlist add MyPlaylist [song]` - Add songs to playlist
+- `/playlist_create MyPlaylist` - Create a playlist
 
-## Step 8: Monitor and Maintain
+## Step 7: Monitor and Maintain
 
-### Health Check Endpoints
-
-The bots provide monitoring endpoints:
+### Available Mage Commands
 
 ```bash
-# Check bot health
-curl http://localhost:8081/health  # Clippy Bot
-curl http://localhost:8082/health  # Music Bot
+# Development
+mage setup                # Install dev tools, create configs
+mage dev                  # Run with debug logging
+mage build                # Build all applications
+mage clean                # Clean build artifacts
+mage reset                # Reset to fresh state
 
-# Get detailed metrics
-curl http://localhost:8081/metrics  # System and bot metrics
+# Quality Assurance
+mage fmt                  # Format code
+mage vet                  # Static analysis
+mage lint                 # Comprehensive linting
+mage vulnCheck           # Security vulnerability scan
+mage test                # Run test suite
+mage ci                   # Complete CI pipeline
+
+# View all available commands
+mage help
 ```
 
 ### Log Management
 
 ```bash
-# View real-time logs (development)
-tail -f clippy_bot.log
-tail -f music_bot.log
+# View application logs (adjust path as needed)
+tail -f bot.log
 
 # View service logs (production)
+sudo journalctl -u mtg-card-bot -f
 sudo journalctl -u clippy-bot -f
 sudo journalctl -u music-bot -f
 ```
@@ -249,14 +281,14 @@ sudo journalctl -u music-bot -f
 # Pull latest changes
 git pull origin main
 
-# Update dependencies
-uv sync --all-extras
+# Rebuild applications
+mage clean && mage build
 
 # Restart services (production)
-sudo systemctl restart clippy-bot music-bot
+sudo systemctl restart mtg-card-bot clippy-bot music-bot
 
-# Restart bots (development)
-./scripts/stop-all.sh && ./scripts/start-all.sh
+# Quality checks before deployment
+mage ci
 ```
 
 ## Troubleshooting
@@ -264,89 +296,95 @@ sudo systemctl restart clippy-bot music-bot
 ### Common Issues
 
 **Bot appears offline:**
-
 - Verify token is correct in configuration
 - Check that bot has proper permissions in Discord
 - Review logs for connection errors
 
 **Slash commands not appearing:**
-
 - Wait up to 1 hour for global command sync
-- Use guild-specific sync for faster testing (set `GUILD_ID`)
+- Use guild-specific sync for faster testing (set `GUILD_ID` variables)
 - Verify bot has "Use Slash Commands" permission
 
-**Music bot can't join voice:**
+**MTG Card Bot prefix commands not working:**
+- Ensure "Message Content Intent" is enabled for the bot
+- Check that bot has "Send Messages" permission
+- Verify the correct prefix is being used (default: `!`)
 
+**Music bot can't join voice:**
 - Ensure bot has "Connect" and "Speak" permissions
 - Check voice channel user limit
-- Verify you're in a voice channel when using commands
+- Verify FFmpeg is installed and accessible
+- Make sure you're in a voice channel when using commands
 
-**Permission errors:**
-
-- Bot needs "Send Messages" in channels where it responds
-- Music bot needs voice permissions in target channels
-- Check role hierarchy (bot role should be above roles it needs to manage)
+**Build errors:**
+- Ensure Go 1.23+ is installed: `go version`
+- Update dependencies: `go mod tidy`
+- Clean and rebuild: `mage clean && mage build`
 
 ### Debug Mode
 
 Enable debug logging for troubleshooting:
 
 ```env
+DEBUG=true
+LOG_LEVEL=debug
 CLIPPY_DEBUG=true
 MUSIC_DEBUG=true
 ```
 
-### Validation
-
-Run the validation script to check configuration:
+### Performance Monitoring
 
 ```bash
-uv run python validate.py
+# View bot statistics (MTG Card Bot)
+!stats
+!cache
+
+# Check system resources
+top -p $(pgrep -f mtg-card-bot)
 ```
 
 ## Security Best Practices
 
 1. **Never commit tokens** to version control
-2. **Use environment variables** for sensitive configuration
+2. **Use environment variables** for sensitive configuration  
 3. **Keep tokens secure** - treat them like passwords
-4. **Regularly update dependencies**: `uv sync --all-extras`
+4. **Regularly update dependencies**: `go mod tidy && mage vulnCheck`
 5. **Monitor logs** for suspicious activity
 6. **Use least-privilege permissions** when inviting bots
+7. **Run vulnerability scans**: `mage vulnCheck`
 
 ## Production Considerations
 
-### Reverse Proxy Setup
+### Resource Requirements
 
-For production with HTTPS:
+- **Memory**: 50-100MB per bot under normal load
+- **CPU**: <5% per bot under normal load  
+- **Storage**: Minimal (logs and SQLite databases for Music bot)
+- **Network**: Depends on usage (Discord API calls)
 
-```bash
-# Install Caddy
-sudo apt install caddy
+### Scaling Considerations
 
-# Copy Caddyfile configuration
-sudo cp Caddyfile /etc/caddy/Caddyfile
-
-# Edit domain configuration
-sudo nano /etc/caddy/Caddyfile
-
-# Start Caddy
-sudo systemctl enable caddy && sudo systemctl start caddy
-```
+- Each bot can handle 1000+ concurrent users
+- Consider load balancing for very high traffic
+- SQLite databases are sufficient for most use cases
+- Monitor cache hit rates for MTG Card Bot performance
 
 ### Backup Strategy
 
 ```bash
-# Backup database and configuration
-tar -czf bot-backup-$(date +%Y%m%d).tar.gz data/ config.json .env
+# Backup configuration and databases
+tar -czf bot-backup-$(date +%Y%m%d).tar.gz .env config.json music.db
 
 # Automated daily backups
-echo "0 2 * * * cd /path/to/discord-bot-framework && tar -czf backup-\$(date +\%Y\%m\%d).tar.gz data/ config.json .env" | crontab -
+echo "0 2 * * * cd /path/to/discord-bot-framework && tar -czf backup-\$(date +\%Y\%m\%d).tar.gz .env config.json *.db" | crontab -
 ```
 
 ## Need Help?
 
 - Check the [main README](README.md) for architecture details
-- Review logs for specific error messages
+- Review logs for specific error messages  
+- Use `mage help` to see all available commands
+- Run `mage ci` to check code quality and tests
 - Ensure all permissions are correctly configured
 - Verify network connectivity and firewall settings
 

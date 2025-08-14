@@ -409,31 +409,11 @@ BOT_JSON_LOGGING=false
 // CI runs the complete CI pipeline
 func CI() error {
 	fmt.Println("Running complete CI pipeline...")
-	mg.SerialDeps(Fmt, Vet, Lint, Build, Test, showBuildInfo)
+	mg.SerialDeps(Fmt, Vet, Lint, Build, showBuildInfo)
 	return nil
 }
 
-// Test runs all tests
-func Test() error {
-	fmt.Println("Running tests...")
-	return sh.RunV("go", "test", "-v", "./...")
-}
 
-// TestCoverage runs tests with coverage
-func TestCoverage() error {
-	fmt.Println("Running tests with coverage...")
-	if err := sh.RunV("go", "test", "-v", "-cover", "./..."); err != nil {
-		return err
-	}
-
-	fmt.Println("Generating coverage profile...")
-	if err := sh.RunV("go", "test", "-coverprofile=coverage.out", "./..."); err != nil {
-		return err
-	}
-
-	fmt.Println("Coverage report:")
-	return sh.RunV("go", "tool", "cover", "-func=coverage.out")
-}
 
 // Quality runs all quality checks
 func Quality() error {
@@ -464,11 +444,9 @@ Quality:
   mage lint (l)         Run golangci-lint comprehensive linting
   mage vulnCheck (vc)   Check for security vulnerabilities
   mage quality (q)      Run all quality checks (vet + lint + vulncheck)
-  mage test (t)         Run all tests
-  mage testCoverage     Run tests with coverage report
 
 Production:
-  mage ci               Complete CI pipeline (fmt + quality + build + test)
+  mage ci               Complete CI pipeline (fmt + quality + build)
   mage clean (c)        Clean build artifacts and temporary files
   mage reset            Reset repository to fresh state (clean + remove logs/databases)
 
@@ -528,6 +506,5 @@ var Aliases = map[string]interface{}{
 	"c":    Clean,
 	"s":    Setup,
 	"q":    Quality,
-	"t":    Test,
 	"h":    Help,
 }

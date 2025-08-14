@@ -12,9 +12,9 @@
 
 This monorepo demonstrates enterprise-grade Discord bot architecture with three specialized bots: a feature-rich MTG Card lookup bot, an unhinged Clippy bot, and a full-featured music bot. Built with modern Go practices, comprehensive logging, metrics, and graceful error handling.
 
-## ✨ Features
+## Features
 
-### 🏗️ Modern Architecture
+### Modern Architecture
 
 - **Monorepo Design** - Multiple specialized bots with shared infrastructure
 - **Microservice Pattern** - Independent, self-contained bot applications
@@ -22,7 +22,7 @@ This monorepo demonstrates enterprise-grade Discord bot architecture with three 
 - **Domain-Driven Design** - Each bot has its own domain logic and boundaries
 - **2025 Best Practices** - Following the latest Go development standards
 
-### 🔧 Core Framework
+### Core Framework
 
 - **Structured Logging** - `slog`-based logging with context and structured fields
 - **Metrics & Observability** - Built-in performance monitoring and error tracking
@@ -31,7 +31,7 @@ This monorepo demonstrates enterprise-grade Discord bot architecture with three 
 - **Graceful Shutdown** - Context-aware cleanup with configurable timeouts
 - **Rate Limiting** - Built-in command cooldowns and API rate limiting
 
-### 🃏 MTG Card Bot (Reference Implementation)
+### MTG Card Bot (Reference Implementation)
 
 - **Advanced Card Search** - Scryfall API integration with intelligent caching
 - **Multi-Card Grid Layout** - Display up to 10 cards in organized grids
@@ -40,7 +40,7 @@ This monorepo demonstrates enterprise-grade Discord bot architecture with three 
 - **Performance Optimized** - Sub-100ms response times with cache hit rates >80%
 - **Rich Embeds** - Beautiful card displays with rarity colors and metadata
 
-### 📎 Clippy Bot (Chaos Engine)
+### Clippy Bot (Chaos Engine)
 
 - **Unhinged AI Persona** - Classic Microsoft Clippy with 2025 internet culture
 - **Adaptive Random Responses** - Dynamic timing with natural conversation flow
@@ -48,7 +48,7 @@ This monorepo demonstrates enterprise-grade Discord bot architecture with three 
 - **Performance Metrics** - Real-time stats on chaos distribution and response times
 - **Psychological Warfare** - Professionally annoying since 1997
 
-### 🎵 Music Bot (Coming Soon)
+### Music Bot (Coming Soon)
 
 - **High-Quality Audio** - YouTube integration with premium audio processing
 - **Advanced Queue Management** - Sophisticated playback controls and queue manipulation
@@ -56,14 +56,14 @@ This monorepo demonstrates enterprise-grade Discord bot architecture with three 
 - **Voice Channel Intelligence** - Auto-join, smart disconnect, and activity detection
 - **Multi-Guild Support** - Concurrent playback across multiple Discord servers
 
-## 🏛️ Architecture Overview
+## Architecture Overview
 
 ### Modern Monorepo Structure (2025 Best Practices)
 
 ```
 discord-bot-framework/
-├── 🚀 apps/                          # Independent bot applications
-│   ├── 🃏 mtg-card-bot/              # Reference implementation
+├── apps/                          # Independent bot applications
+│   ├── mtg-card-bot/              # Reference implementation
 │   │   ├── main.go                   # Application entry point
 │   │   ├── config/config.go          # App-specific configuration
 │   │   ├── discord/bot.go            # Discord integration layer
@@ -72,28 +72,27 @@ discord-bot-framework/
 │   │   ├── logging/logger.go         # Structured logging
 │   │   ├── errors/errors.go          # Domain error types
 │   │   └── metrics/metrics.go        # Observability
-│   ├── 📎 clippy/                    # Chaos engineering bot
+│   ├── clippy/                    # Chaos engineering bot
 │   │   ├── main.go                   # Enhanced with metrics
 │   │   ├── config/config.go          # Clippy-specific settings
 │   │   ├── discord/bot.go            # Modern slash commands
 │   │   ├── logging/logger.go         # Contextual logging
 │   │   ├── errors/errors.go          # Error categorization
 │   │   └── metrics/metrics.go        # Performance tracking
-│   └── 🎵 music/ (Legacy - Being Refactored)
+│   └── music/ (Legacy - Being Refactored)
 │       ├── main.go
 │       ├── bot.go                    # Needs modernization
 │       ├── queue.go                  # Music queue logic
 │       └── extractor.go              # Audio processing
-├── 📦 pkg/                           # Shared libraries (future)
+├── pkg/                           # Shared libraries (future)
 │   ├── cache/                        # Common caching patterns
 │   ├── config/                       # Shared configuration
 │   ├── discord/                      # Discord utilities
 │   └── metrics/                      # Metrics collection
-├── 🛠️ internal/                      # Legacy shared code (being phased out)
-├── ⚡ magefile.go                     # Build automation and task runner
-├── 🐳 Dockerfile                     # Container deployment
-├── 📋 go.mod                         # Dependency management
-└── 📚 docs/                          # Additional documentation
+├── internal/                      # Legacy shared code (being phased out)
+├── magefile.go                     # Build automation and task runner
+├── go.mod                         # Dependency management
+└── docs/                          # Additional documentation
 ```
 
 ### Design Principles
@@ -104,7 +103,7 @@ discord-bot-framework/
 4. **Observability First** - Logging, metrics, and tracing built-in from day one
 5. **Modern Tooling** - Mage for builds, structured logging, typed errors
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -114,7 +113,7 @@ discord-bot-framework/
 4. **yt-dlp** (for music bot) - `pip install yt-dlp` or [releases](https://github.com/yt-dlp/yt-dlp/releases)
 5. **FFmpeg** (for music bot) - [Download FFmpeg](https://ffmpeg.org/download.html)
 
-### ⚡ Lightning Fast Setup
+### Lightning Fast Setup
 
 ```bash
 # 1. Clone and enter directory
@@ -129,12 +128,12 @@ export DISCORD_TOKEN="your_mtg_bot_token_here"
 # OR edit the generated .env file
 
 # 4. Build and run your preferred bot
-mage runMTG      # 🃏 MTG Card Bot (recommended first try)
-mage runClipper  # 📎 Clippy Bot (for chaos)
-mage runMusic    # 🎵 Music Bot (work in progress)
+mage runMTG      # MTG Card Bot (recommended first try)
+mage runClipper  # Clippy Bot (for chaos)
+mage runMusic    # Music Bot (work in progress)
 ```
 
-### 🔧 Advanced Configuration
+### Advanced Configuration
 
 Each bot supports individual configuration through environment variables:
 
@@ -179,24 +178,24 @@ export MUSIC_DATABASE_URL="./music.db"
 export MUSIC_DEBUG="true"
 ```
 
-### 🔨 Build System & Task Management
+### Build System & Task Management
 
 Powered by [Mage](https://magefile.org/) - a Make alternative for Go projects:
 
 ```bash
-# 🚀 Development Commands
+# Development Commands
 mage setup                    # Install dev tools, create configs
 mage dev                      # Run all bots with debug logging
 mage runMTG                   # Run MTG Card Bot (recommended)
 mage runClipper              # Run Clippy Bot  
 mage runMusic                # Run Music Bot
 
-# 🏗️ Build & Deploy
+# Build & Deploy
 mage build                    # Build all applications
 mage clean                    # Clean build artifacts
 mage reset                    # Reset to fresh state
 
-# ✅ Quality Assurance
+# Quality Assurance
 mage fmt                      # Format code (goimports)
 mage vet                      # Static analysis
 mage lint                     # Comprehensive linting
@@ -206,25 +205,21 @@ mage test                     # Run test suite
 mage testCoverage            # Tests with coverage report
 mage ci                       # Complete CI pipeline
 
-# 📊 Monitoring
+# Monitoring
 mage help                     # Show all available commands
 ```
 
-### 🐳 Production Deployment
+### Production Deployment
 
 ```bash
-# Docker deployment (coming soon)
-docker build -t discord-bot-mtg .
-docker run -e DISCORD_TOKEN=your_token discord-bot-mtg
-
 # Binary deployment
 mage build
 ./bin/mtg-card-bot           # Direct execution
 ```
 
-## 🎮 Bot Commands & Features
+## Bot Commands & Features
 
-### 🃏 MTG Card Bot (The Crown Jewel)
+### MTG Card Bot (The Crown Jewel)
 
 ```bash
 # Card Lookup (prefix-based for power users)
@@ -251,7 +246,7 @@ is:foil        # Foil/non-foil
 rarity:mythic  # Rarity filtering
 ```
 
-### 📎 Clippy Bot (Chaos Engineering)
+### Clippy Bot (Chaos Engineering)
 
 ```bash
 # Slash Commands (Modern Discord Integration)
@@ -261,13 +256,13 @@ rarity:mythic  # Rarity filtering
 /clippy_stats               # Performance and chaos metrics
 
 # Passive Features
-🤖 2% random response rate to any message
-⏰ Periodic random messages (configurable timing)
-📊 Real-time performance tracking
-🎭 Modern internet culture references
+2% random response rate to any message
+Periodic random messages (configurable timing)
+Real-time performance tracking
+Modern internet culture references
 ```
 
-### 🎵 Music Bot (Legacy - Partial Implementation)
+### Music Bot (Legacy - Partial Implementation)
 
 ```bash
 # Basic Playback
@@ -314,50 +309,50 @@ go test -cover ./...
 go test ./internal/config
 ```
 
-## 🏗️ Technical Excellence
+## Technical Excellence
 
 ### Design Philosophy (2025 Edition)
 
 ```mermaid
 graph TD
-    A["🎯 Domain-Driven Design"] --> B["📦 Independent Applications"]
-    B --> C["🔄 Shared Infrastructure"]
-    C --> D["📊 Observability First"]
-    D --> E["⚡ Performance Optimized"]
+    A["Domain-Driven Design"] --> B["Independent Applications"]
+    B --> C["Shared Infrastructure"]
+    C --> D["Observability First"]
+    D --> E["Performance Optimized"]
 ```
 
 **Core Principles:**
-- 🎯 **Domain-Driven Design** - Each bot owns its domain logic completely
-- 📦 **Microservice Architecture** - Independent deployment and scaling
-- 🔄 **Shared Libraries** - Common patterns extracted to `pkg/`
-- 📊 **Observability First** - Metrics, logging, and tracing from day one
-- ⚡ **Performance Optimized** - Sub-100ms response times, >80% cache hit rates
-- 🛡️ **Error Resilience** - Comprehensive error categorization and handling
-- 🔒 **Security Conscious** - Input validation, rate limiting, secure defaults
+- **Domain-Driven Design** - Each bot owns its domain logic completely
+- **Microservice Architecture** - Independent deployment and scaling
+- **Shared Libraries** - Common patterns extracted to `pkg/`
+- **Observability First** - Metrics, logging, and tracing from day one
+- **Performance Optimized** - Sub-100ms response times, >80% cache hit rates
+- **Error Resilience** - Comprehensive error categorization and handling
+- **Security Conscious** - Input validation, rate limiting, secure defaults
 
 ### Implementation Highlights
 
-#### 🃏 MTG Card Bot (Reference Architecture)
+#### MTG Card Bot (Reference Architecture)
 - **Response Time**: <100ms average (95th percentile)
 - **Cache Hit Rate**: >80% for common cards
 - **Error Recovery**: Intelligent fallbacks for failed searches
 - **Memory Usage**: <50MB under normal load
 - **Concurrent Users**: Tested up to 1000 concurrent requests
 
-#### 📎 Clippy Bot (Modern Rewrite)
+#### Clippy Bot (Modern Rewrite)
 - **Enhanced Metrics**: Real-time performance tracking
 - **Smart Randomization**: Natural conversation flow algorithms  
 - **Modern Discord Features**: Slash commands, buttons, embeds
 - **Cultural Relevance**: 2025 internet culture integration
 - **Chaos Engineering**: Controlled randomness with measurable impact
 
-#### 🎵 Music Bot (Under Modernization)
+#### Music Bot (Under Modernization)
 - **Queue Management**: Thread-safe concurrent access
 - **Audio Quality**: Premium YouTube extraction
 - **Database Integration**: SQLite with proper migrations
 - **Voice Intelligence**: Smart connection management
 
-## 🚀 Performance & Scalability
+## Performance & Scalability
 
 ### Benchmarks (2025 Hardware)
 
@@ -375,23 +370,23 @@ graph TD
 
 ### Why Go? (Migration from Python)
 
-#### ⚡ Performance Gains
+#### Performance Gains
 - **10x faster startup** - 500ms vs 5s Python cold start
 - **3x lower memory usage** - 45MB vs 150MB Python equivalent
 - **5x better concurrent performance** - Native goroutines vs GIL limitations
 - **Zero warmup time** - Compiled binary, no interpretation overhead
 
-#### 🛡️ Reliability Improvements  
+#### Reliability Improvements  
 - **Compile-time error detection** - Catch bugs before deployment
 - **Memory safety** - No more mysterious Python memory leaks
 - **Dependency management** - Single binary, no "works on my machine"
 - **Graceful degradation** - Proper error boundaries and recovery
 
-#### 🔧 Developer Experience
+#### Developer Experience
 - **Static typing** - IDE autocomplete and refactoring support
 - **Built-in tooling** - Formatting, linting, testing out of the box
 - **Cross-platform** - Single codebase, multiple architectures
-- **Container ready** - Minimal Docker images (<20MB)
+- **Binary deployment** - Single executable files
 
 ## Troubleshooting
 
@@ -439,29 +434,29 @@ The application uses structured logging. Key log fields:
 5. Ensure all tests pass
 6. Submit a pull request
 
-## 📄 License
+## License
 
 **MIT License** - See [LICENSE](LICENSE) file for full details.
 
-Built with ❤️ using Go and modern software engineering practices. 
+Built with Go and modern software engineering practices. 
 
 ---
 
 <p align="center">
   <strong>Ready to build the next generation of Discord bots?</strong><br>
-  Star ⭐ this repo and join the future of bot development!
+  Star this repo and join the future of bot development!
 </p>
 
-## 🤝 Contributing & Support
+## Contributing & Support
 
-### 🐛 Issues & Questions
+### Issues & Questions
 1. **Check existing issues** - Someone might have encountered this before
 2. **Enable debug logging** - Set `DEBUG=true` and `LOG_LEVEL=debug`
 3. **Review bot-specific logs** - Each bot has detailed structured logging
 4. **Performance metrics** - Use `/stats` commands for performance data
 5. **Create detailed issue** - Include logs, config, and reproduction steps
 
-### 🛠️ Development Setup
+### Development Setup
 ```bash
 # Fork the repository and clone your fork
 git clone https://github.com/yourusername/discord-bot-framework.git
@@ -478,23 +473,23 @@ mage fmt
 mage test
 ```
 
-### 📋 Code Standards
+### Code Standards
 - **Follow Go conventions** - `gofmt`, `go vet`, `golangci-lint` compliance
 - **Write tests** - Aim for >80% coverage on new code
 - **Structured logging** - Use the established logging patterns
 - **Error handling** - Proper error categorization and context
 - **Documentation** - Comment public APIs and complex logic
 
-### 🎯 Contribution Focus Areas
+### Contribution Focus Areas
 - **Music Bot Modernization** - Apply MTG Card Bot patterns
 - **Shared Library Extraction** - Move common code to `pkg/`
 - **Performance Optimization** - Cache improvements, memory usage
 - **Feature Enhancement** - New Discord features, improved UX
 - **Documentation** - API docs, tutorials, deployment guides
 
-## 🎯 Roadmap 2025
+## Roadmap 2025
 
-### 🔥 Current Sprint (Q1 2025)
+### Current Sprint (Q1 2025)
 - [x] **MTG Card Bot** - Reference implementation complete
 - [x] **Clippy Bot Modernization** - Enhanced with metrics and modern Discord features
 - [x] **Python Migration** - Complete removal of legacy Python code
@@ -502,15 +497,15 @@ mage test
 - [ ] **Music Bot Refactor** - Apply MTG Card Bot patterns
 - [ ] **Comprehensive Documentation** - API docs, deployment guides
 
-### 🚀 Next Phase (Q2 2025)
+### Next Phase (Q2 2025)
 - [ ] **Shared Libraries (`pkg/`)** - Extract common patterns
-- [ ] **Container Deployment** - Docker, Kubernetes manifests
+- [ ] **Binary Distribution** - Cross-platform builds
 - [ ] **Observability Stack** - Prometheus metrics, structured logging
 - [ ] **Web Dashboard** - Real-time bot management and monitoring
 - [ ] **Health Checks & Circuit Breakers** - Production resilience
 - [ ] **Multi-tenant Architecture** - Support multiple Discord servers
 
-### 🌟 Future Vision (Q3-Q4 2025)
+### Future Vision (Q3-Q4 2025)
 - [ ] **Plugin System** - Dynamic bot extensions
 - [ ] **GraphQL API** - Unified bot management interface
 - [ ] **Event Sourcing** - Command/query separation
