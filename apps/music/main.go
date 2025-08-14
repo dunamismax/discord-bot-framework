@@ -2,36 +2,39 @@ package main
 
 import (
 	"context"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/sawyer/discord-bot-framework/internal/config"
-	"github.com/sawyer/discord-bot-framework/internal/logging"
+	"github.com/sawyer/discord-bot-framework/pkg/config"
+	"github.com/sawyer/discord-bot-framework/pkg/logging"
+	"github.com/sawyer/discord-bot-framework/pkg/metrics"
 )
 
 func main() {
-	// Initialize logging
-	logging.InitializeLogger("INFO", false)
-	logger := logging.WithComponent("music-main")
-
-	// Load configuration (defaults + environment variables)
-	cfg, err := config.Load("")
+	// Load configuration
+	cfg, err := config.Load(config.BotTypeMusic)
 	if err != nil {
-		logger.Error("Failed to load configuration", "error", err)
-		os.Exit(1)
+		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
 	if err := cfg.Validate(); err != nil {
-		logger.Error("Invalid configuration", "error", err)
-		os.Exit(1)
+		log.Fatalf("Invalid configuration: %v", err)
 	}
 
-	logger.Info("Starting Music bot")
+	// Initialize logging
+	logging.InitializeLogger(cfg.LogLevel, cfg.JSONLogging)
+	logger := logging.WithComponent("main")
+
+	logger.Info("Starting Music Bot", "version", "2.0.0")
+
+	// Initialize metrics
+	metrics.Initialize(cfg.BotName, string(cfg.BotType))
 
 	// Create bot
-	bot, err := NewBot(cfg.Music)
+	bot, err := NewBot(cfg)
 	if err != nil {
 		logger.Error("Failed to create Music bot", "error", err)
 		os.Exit(1)
@@ -43,31 +46,36 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger.Info("Music bot is running")
+	logger.Info("Music Bot is running. Press Ctrl+C to stop.")
 
 	// Wait for interrupt signal
-	ctx, cancel := context.WithCancel(context.Background())
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+	<-stop
+
+	logger.Info("Received shutdown signal. Gracefully shutting down...")
+
+	// Create a context with timeout for graceful shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 	defer cancel()
 
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
+	// Stop the bot
+	if err := bot.Stop(); err != nil {
+		logger.Error("Error during bot shutdown", "error", err)
+	}
 
+	// Wait for shutdown to complete or timeout
+	done := make(chan struct{})
 	go func() {
-		sig := <-sigChan
-		logger.Info("Received signal, shutting down", "signal", sig.String())
-		cancel()
+		defer close(done)
+		// Additional cleanup can be added here if needed
+		time.Sleep(1 * time.Second) // Give some time for cleanup
 	}()
 
-	<-ctx.Done()
-
-	// Graceful shutdown
-	logger.Info("Shutting down Music bot")
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer shutdownCancel()
-
-	if err := bot.Stop(shutdownCtx); err != nil {
-		logger.Error("Error stopping Music bot", "error", err)
-	} else {
-		logger.Info("Music bot stopped successfully")
+	select {
+	case <-done:
+		logger.Info("Music Bot shutdown completed successfully")
+	case <-ctx.Done():
+		logger.Warn("Shutdown timeout exceeded, forcing exit")
 	}
 }

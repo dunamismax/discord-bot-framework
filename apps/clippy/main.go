@@ -8,15 +8,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sawyer/discord-bot-framework/apps/clippy/config"
 	"github.com/sawyer/discord-bot-framework/apps/clippy/discord"
-	"github.com/sawyer/discord-bot-framework/apps/clippy/logging"
-	"github.com/sawyer/discord-bot-framework/apps/clippy/metrics"
+	"github.com/sawyer/discord-bot-framework/pkg/config"
+	"github.com/sawyer/discord-bot-framework/pkg/logging"
+	"github.com/sawyer/discord-bot-framework/pkg/metrics"
 )
 
 func main() {
 	// Load configuration
-	cfg, err := config.Load()
+	cfg, err := config.Load(config.BotTypeClipper)
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
@@ -32,7 +32,7 @@ func main() {
 	logger.Info("Starting Clippy Bot", "version", "2.0.0")
 
 	// Initialize metrics
-	metrics.Initialize()
+	metrics.Initialize(cfg.BotName, string(cfg.BotType))
 
 	// Create Discord bot
 	bot, err := discord.NewBot(cfg)

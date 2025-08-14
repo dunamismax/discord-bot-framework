@@ -1,0 +1,104 @@
+groups:
+  - name: discord_bot_alerts
+    rules:
+      # High error rate alert
+      - alert: HighErrorRate
+        expr: rate(discord_commands_failed_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High command failure rate detected"
+          description: "Bot {{ $labels.bot_name }} has a command failure rate of {{ $value | humanizePercentage }} over the last 5 minutes"
+
+      # Bot down alert
+      - alert: BotDown
+        expr: up{job="discord-bots"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Discord bot is down"
+          description: "Bot {{ $labels.instance }} has been down for more than 1 minute"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: discord_memory_usage_bytes > 100 * 1024 * 1024  # 100MB
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage detected"
+          description: "Bot {{ $labels.bot_name }} is using {{ $value | humanizeBytes }} of memory"
+
+      # Low cache hit rate
+      - alert: LowCacheHitRate
+        expr: rate(discord_cache_hits_total[10m]) / rate(discord_cache_operations_total[10m]) < 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Bot {{ $labels.bot_name }} has a cache hit rate of {{ $value | humanizePercentage }}"
+
+      # API rate limit approaching
+      - alert: APIRateLimitApproaching
+        expr: rate(discord_api_requests_total[1m]) > 50
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API rate limit approaching"
+          description: "Bot {{ $labels.bot_name }} is making {{ $value }} API requests per minute"
+
+      # High response time
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(discord_command_duration_seconds_bucket[5m])) > 2
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High command response time"
+          description: "95th percentile command response time is {{ $value }}s for bot {{ $labels.bot_name }}"
+
+      # Security incident detected
+      - alert: SecurityIncident
+        expr: increase(discord_security_incidents_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Security incident detected"
+          description: "{{ $value }} security incident(s) detected on bot {{ $labels.bot_name }}"
+
+  - name: infrastructure_alerts
+    rules:
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}% on instance {{ $labels.instance }}"
+
+      # High disk usage
+      - alert: HighDiskUsage
+        expr: (node_filesystem_size_bytes - node_filesystem_free_bytes) / node_filesystem_size_bytes * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High disk usage"
+          description: "Disk usage is {{ $value }}% on instance {{ $labels.instance }}"
+
+      # Container restart
+      - alert: ContainerRestart
+        expr: increase(docker_container_restarts_total[10m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container restarted"
+          description: "Container {{ $labels.name }} has restarted {{ $value }} times in the last 10 minutes"

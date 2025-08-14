@@ -1,0 +1,169 @@
+version: '3.8'
+
+services:
+  # MTG Card Bot
+  mtg-card-bot:
+    build: .
+    command: ["./mtg-card-bot"]
+    environment:
+      - DISCORD_TOKEN=${MTG_DISCORD_TOKEN}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - JSON_LOGGING=${JSON_LOGGING:-false}
+      - DEBUG=${DEBUG:-false}
+      - CACHE_TTL=${CACHE_TTL:-1h}
+      - CACHE_SIZE=${CACHE_SIZE:-1000}
+    volumes:
+      - mtg_cache:/app/cache
+      - mtg_logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - discord-bots
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "mtg-card-bot"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Clippy Bot
+  clippy-bot:
+    build: .
+    command: ["./clippy-bot"]
+    environment:
+      - DISCORD_TOKEN=${CLIPPY_DISCORD_TOKEN}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - JSON_LOGGING=${JSON_LOGGING:-false}
+      - DEBUG=${DEBUG:-false}
+      - RANDOM_RESPONSES=${RANDOM_RESPONSES:-true}
+      - RANDOM_INTERVAL=${RANDOM_INTERVAL:-45m}
+      - RANDOM_MESSAGE_DELAY=${RANDOM_MESSAGE_DELAY:-3s}
+    volumes:
+      - clippy_logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - discord-bots
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "clippy-bot"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Music Bot
+  music-bot:
+    build: .
+    command: ["./music-bot"]
+    environment:
+      - DISCORD_TOKEN=${MUSIC_DISCORD_TOKEN}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - JSON_LOGGING=${JSON_LOGGING:-false}
+      - DEBUG=${DEBUG:-false}
+      - DATABASE_URL=${MUSIC_DATABASE_URL:-music.db}
+      - MAX_QUEUE_SIZE=${MAX_QUEUE_SIZE:-100}
+      - INACTIVITY_TIMEOUT=${INACTIVITY_TIMEOUT:-5m}
+      - VOLUME_LEVEL=${VOLUME_LEVEL:-0.5}
+    volumes:
+      - music_data:/app/data
+      - music_cache:/app/cache
+      - music_logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - discord-bots
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "music-bot"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # All-in-one (alternative to running individual bots)
+  discord-bot-framework:
+    build: .
+    command: ["./discord-bot-framework", "--bot", "all"]
+    environment:
+      # MTG Bot
+      - MTG_DISCORD_TOKEN=${MTG_DISCORD_TOKEN}
+      # Clippy Bot  
+      - CLIPPY_DISCORD_TOKEN=${CLIPPY_DISCORD_TOKEN}
+      # Music Bot
+      - MUSIC_DISCORD_TOKEN=${MUSIC_DISCORD_TOKEN}
+      # Global settings
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - JSON_LOGGING=${JSON_LOGGING:-false}
+      - DEBUG=${DEBUG:-false}
+    volumes:
+      - framework_data:/app/data
+      - framework_cache:/app/cache
+      - framework_logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - discord-bots
+    profiles:
+      - all-in-one
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "discord-bot-framework"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Monitoring (optional)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - discord-bots
+    profiles:
+      - monitoring
+    restart: unless-stopped
+
+  # Log aggregation (optional)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - discord-bots
+    profiles:
+      - monitoring
+    restart: unless-stopped
+
+volumes:
+  # Individual bot volumes
+  mtg_cache:
+  mtg_logs:
+  clippy_logs:
+  music_data:
+  music_cache:
+  music_logs:
+  
+  # All-in-one volumes
+  framework_data:
+  framework_cache:
+  framework_logs:
+  
+  # Monitoring volumes
+  prometheus_data:
+  grafana_data:
+
+networks:
+  discord-bots:
+    driver: bridge

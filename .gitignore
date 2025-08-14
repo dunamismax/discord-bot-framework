@@ -206,11 +206,44 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# Discord Bot specific
-# Bot tokens and secrets
+# Discord Bot Framework specific
+# =============================================================================
+
+# Go specific additions
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.html
+*.cover
+
+# Go workspace file
+go.work
+
+# Build directories
+bin/
+build/
+dist/
+
+# Bot tokens and secrets - CRITICAL SECURITY
+.env*
 config.json
+config.local.json
+config.production.json
 secrets.json
 *.token
+*.secret
+*.key
+.secrets/
+secrets/
 
 # Audio files and downloads
 *.mp3
@@ -226,21 +259,63 @@ secrets.json
 *.sqlite
 *.sqlite3
 data/
+music.db*
+clippy.db*
+bot.db*
 
 # Bot logs
 logs/
+log/
 bot.log
-*.log
+discord.log
+clippy.log
+music.log
 
 # Audio cache and downloads
 audio_cache/
 downloads/
 ytdl_cache/
+.cache/
+cache/
 
 # Temporary files
 tmp/
 temp/
 .tmp/
+.temp/
 
-# Docker overrides
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Profiling and monitoring
+*.prof
+*.pprof
+metrics/
+prometheus/
+grafana/
+
+# Deployment and infrastructure
+deploy/
+deployment/
+k8s/secrets/
+helm/values.local.yaml
 docker-compose.override.yml
+
+# Auto-generated files
+*.generated.go
+*_gen.go
+
+# Test fixtures and mocks
+testdata/
+fixtures/
+mocks/
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock

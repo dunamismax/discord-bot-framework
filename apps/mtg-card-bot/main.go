@@ -9,16 +9,16 @@ import (
 	"time"
 
 	"github.com/sawyer/discord-bot-framework/apps/mtg-card-bot/cache"
-	"github.com/sawyer/discord-bot-framework/apps/mtg-card-bot/config"
 	"github.com/sawyer/discord-bot-framework/apps/mtg-card-bot/discord"
-	"github.com/sawyer/discord-bot-framework/apps/mtg-card-bot/logging"
-	"github.com/sawyer/discord-bot-framework/apps/mtg-card-bot/metrics"
 	"github.com/sawyer/discord-bot-framework/apps/mtg-card-bot/scryfall"
+	"github.com/sawyer/discord-bot-framework/pkg/config"
+	"github.com/sawyer/discord-bot-framework/pkg/logging"
+	"github.com/sawyer/discord-bot-framework/pkg/metrics"
 )
 
 func main() {
 	// Load configuration
-	cfg, err := config.Load()
+	cfg, err := config.Load(config.BotTypeMTG)
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
@@ -34,7 +34,7 @@ func main() {
 	logger.Info("Starting MTG Card Bot", "version", "2.0.0")
 
 	// Initialize metrics
-	metrics.Initialize()
+	metrics.Initialize(cfg.BotName, string(cfg.BotType))
 
 	// Initialize Scryfall client
 	scryfallClient := scryfall.NewClient()
