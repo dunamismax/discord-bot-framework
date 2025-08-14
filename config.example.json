@@ -1,31 +1,29 @@
 {
   "clippy": {
-    "guild_id": null,
+    "bot_name": "Clippy Bot",
+    "discord_token": "YOUR_CLIPPY_BOT_TOKEN_HERE",
     "command_prefix": "!",
-    "debug": false,
-    "health_check_port": 8081,
-    "command_cooldown": 1.0
+    "guild_id": "YOUR_GUILD_ID_FOR_TESTING",
+    "debug_mode": false,
+    "log_level": "INFO",
+    "json_logging": false,
+    "command_cooldown": "5s",
+    "shutdown_timeout": "10s",
+    "random_responses": true
   },
   "music": {
-    "guild_id": null,
+    "bot_name": "Music Bot",
+    "discord_token": "YOUR_MUSIC_BOT_TOKEN_HERE",
     "command_prefix": "!",
-    "debug": false,
-    "database_url": null,
-    "health_check_port": 8082,
-    "max_playlist_size": 100,
-    "max_queue_size": 50,
-    "auto_disconnect_timeout": 300,
-    "command_cooldown": 1.0,
-    "allowed_file_formats": ["mp3", "mp4", "webm", "ogg"],
-    "max_song_duration": 3600,
-    "ytdl_options": {
-      "format": "bestaudio/best",
-      "noplaylist": true,
-      "quiet": true
-    },
-    "ffmpeg_options": {
-      "before_options": "-nostdin",
-      "options": "-vn -b:a 128k"
-    }
+    "guild_id": "YOUR_GUILD_ID_FOR_TESTING",
+    "debug_mode": false,
+    "log_level": "INFO",
+    "json_logging": false,
+    "command_cooldown": "3s",
+    "shutdown_timeout": "10s",
+    "max_queue_size": 100,
+    "inactivity_timeout": "5m",
+    "volume_level": 0.5,
+    "database_url": "music.db"
   }
 }

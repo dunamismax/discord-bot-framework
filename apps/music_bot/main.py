@@ -5,8 +5,8 @@ import os
 import sys
 
 # Add the libs and project root directories to the Python path
-project_root = os.path.join(os.path.dirname(__file__), '..', '..')
-sys.path.insert(0, os.path.join(project_root, 'libs'))
+project_root = os.path.join(os.path.dirname(__file__), "..", "..")
+sys.path.insert(0, os.path.join(project_root, "libs"))
 sys.path.insert(0, project_root)
 
 import discord
@@ -17,14 +17,14 @@ from shared_utils import BaseBot, DatabaseMixin, load_config
 if not discord.opus.is_loaded():
     # Try common locations for opus library
     opus_paths = [
-        '/opt/homebrew/lib/libopus.dylib',  # Homebrew on Apple Silicon
-        '/usr/local/lib/libopus.dylib',     # Homebrew on Intel Mac
-        '/opt/homebrew/Cellar/opus/1.5.2/lib/libopus.dylib',  # Specific Homebrew path
-        'libopus.so.0',                     # Linux
-        'libopus.so',                       # Linux alternative
-        'opus'                              # Try system default
+        "/opt/homebrew/lib/libopus.dylib",  # Homebrew on Apple Silicon
+        "/usr/local/lib/libopus.dylib",  # Homebrew on Intel Mac
+        "/opt/homebrew/Cellar/opus/1.5.2/lib/libopus.dylib",  # Specific Homebrew path
+        "libopus.so.0",  # Linux
+        "libopus.so",  # Linux alternative
+        "opus",  # Try system default
     ]
-    
+
     for path in opus_paths:
         try:
             discord.opus.load_opus(path)
@@ -54,13 +54,13 @@ class MusicBot(DatabaseMixin, BaseBot):
 
     async def setup_hook(self):
         """Set up the bot when it starts."""
-        if hasattr(self, '_setup_hook_called'):
+        if hasattr(self, "_setup_hook_called"):
             self.logger.info("setup_hook already called, skipping...")
             return
-            
+
         self._setup_hook_called = True
         self.logger.info("Starting setup_hook...")
-        
+
         # Initialize database
         try:
             await self.setup_database()
@@ -71,11 +71,12 @@ class MusicBot(DatabaseMixin, BaseBot):
         try:
             await self.load_cogs([
                 "apps.music_bot.cogs.music_player",
-                "shared_utils.help_system"
+                "shared_utils.help_system",
             ])
         except Exception as e:
             self.logger.error(f"Failed to load cogs: {e}")
             import traceback
+
             self.logger.error(f"Traceback: {traceback.format_exc()}")
 
         # Sync slash commands
@@ -86,18 +87,20 @@ class MusicBot(DatabaseMixin, BaseBot):
                 await self.sync_commands(guild_ids=[guild.id])
                 self.logger.info(f"Synced commands to guild: {guild.name}")
             else:
-                self.logger.error(f"Could not find guild with ID: {self.config.guild_id}")
+                self.logger.error(
+                    f"Could not find guild with ID: {self.config.guild_id}"
+                )
         else:
             await self.sync_commands()
             self.logger.info("Synced commands globally")
-        
+
         self.logger.info("setup_hook completed!")
 
     async def on_ready(self):
         """Called when the bot is ready."""
         await super().on_ready()
         # Manually call setup_hook if it wasn't called automatically
-        if not hasattr(self, '_setup_hook_called'):
+        if not hasattr(self, "_setup_hook_called"):
             await self.setup_hook()
 
     async def on_voice_state_update(self, member, before, after):
@@ -111,7 +114,9 @@ class MusicBot(DatabaseMixin, BaseBot):
                     music_cog.voice_clients.pop(member.guild.id, None)
                     queue = music_cog.get_queue(member.guild.id)
                     queue.clear()
-                    self.logger.info(f"Bot disconnected from voice channel in {member.guild.name}")
+                    self.logger.info(
+                        f"Bot disconnected from voice channel in {member.guild.name}"
+                    )
             return
 
         # Check if bot is in a voice channel and is now alone
@@ -124,10 +129,14 @@ class MusicBot(DatabaseMixin, BaseBot):
                     # Bot is alone, disconnect after a short delay
                     await asyncio.sleep(5)
                     # Check again after delay
-                    non_bot_members = [m for m in voice_client.channel.members if not m.bot]
+                    non_bot_members = [
+                        m for m in voice_client.channel.members if not m.bot
+                    ]
                     if len(non_bot_members) == 0:
                         await voice_client.disconnect()
-                        self.logger.info(f"Disconnected from {guild.name} - no users in voice channel")
+                        self.logger.info(
+                            f"Disconnected from {guild.name} - no users in voice channel"
+                        )
 
 
 async def main():
