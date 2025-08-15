@@ -375,7 +375,7 @@ func Setup() error {
 		envContent := `# Discord Bot Framework Environment Variables
 
 # Global settings (applies to all bots unless overridden)
-DISCORD_TOKEN=your_default_discord_token_here
+# Global Discord token - not recommended, use bot-specific tokens instead
 COMMAND_PREFIX=!
 LOG_LEVEL=info
 JSON_LOGGING=false
@@ -405,7 +405,7 @@ INACTIVITY_TIMEOUT=5m
 VOLUME_LEVEL=0.5
 
 # MTG Card Bot Configuration
-# MTG bot will use DISCORD_TOKEN if no specific token is provided
+MTG_DISCORD_TOKEN=your_mtg_bot_token_here
 CACHE_TTL=1h
 CACHE_SIZE=1000
 `

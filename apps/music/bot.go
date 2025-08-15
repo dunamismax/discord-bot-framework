@@ -17,10 +17,15 @@ import (
 // Bot represents the Music Discord bot.
 type Bot struct {
 	*discord.BaseBot
-	database     *Database
-	audioPlayer  *AudioPlayer
-	queueManager *QueueManager
+	database        *Database
+	audioPlayer     *AudioPlayer
+	queueManager    *QueueManager
+	audioExtractor  *AudioExtractor
+	commandHandlers map[string]SlashCommandHandler
 }
+
+// SlashCommandHandler represents a function that handles slash commands.
+type SlashCommandHandler func(s *discordgo.Session, i *discordgo.InteractionCreate) error
 
 // NewBot creates a new Music bot instance.
 func NewBot(cfg *config.Config) (*Bot, error) {
@@ -30,9 +35,11 @@ func NewBot(cfg *config.Config) (*Bot, error) {
 	}
 
 	bot := &Bot{
-		BaseBot:      baseBot,
-		queueManager: NewQueueManager(),
-		audioPlayer:  NewAudioPlayer(),
+		BaseBot:         baseBot,
+		queueManager:    NewQueueManager(),
+		audioPlayer:     NewAudioPlayer(),
+		audioExtractor:  NewAudioExtractor(),
+		commandHandlers: make(map[string]SlashCommandHandler),
 	}
 
 	// Initialize database if URL is provided
@@ -44,8 +51,12 @@ func NewBot(cfg *config.Config) (*Bot, error) {
 		bot.database = database
 	}
 
-	// Register commands
-	bot.registerCommands()
+	// Register both slash commands and event handlers
+	bot.registerSlashCommands()
+	bot.BaseBot.GetSession().AddHandler(bot.onInteractionCreate)
+
+	// Set voice intents for audio functionality
+	bot.GetSession().Identify.Intents |= discordgo.IntentsGuildVoiceStates
 
 	return bot, nil
 }
@@ -53,6 +64,11 @@ func NewBot(cfg *config.Config) (*Bot, error) {
 // Start starts the Music bot.
 func (b *Bot) Start() error {
 	if err := b.BaseBot.Start(); err != nil {
+		return err
+	}
+
+	// Register slash commands with Discord
+	if err := b.registerSlashCommandsWithDiscord(); err != nil {
 		return err
 	}
 
@@ -87,39 +103,297 @@ func (b *Bot) Stop() error {
 	return b.BaseBot.Stop()
 }
 
-// registerCommands registers all Music commands.
-func (b *Bot) registerCommands() {
+// registerSlashCommands registers all slash command handlers.
+func (b *Bot) registerSlashCommands() {
 	// Basic playback commands
-	b.RegisterCommand("play", b.handlePlayCommand)
-	b.RegisterCommand("pause", b.handlePauseCommand)
-	b.RegisterCommand("resume", b.handleResumeCommand)
-	b.RegisterCommand("skip", b.handleSkipCommand)
-	b.RegisterCommand("stop", b.handleStopCommand)
-	b.RegisterCommand("queue", b.handleQueueCommand)
-	b.RegisterCommand("volume", b.handleVolumeCommand)
+	b.commandHandlers["play"] = b.handlePlaySlashCommand
+	b.commandHandlers["pause"] = b.handlePauseSlashCommand
+	b.commandHandlers["resume"] = b.handleResumeSlashCommand
+	b.commandHandlers["skip"] = b.handleSkipSlashCommand
+	b.commandHandlers["stop"] = b.handleStopSlashCommand
+	b.commandHandlers["queue"] = b.handleQueueSlashCommand
+	b.commandHandlers["volume"] = b.handleVolumeSlashCommand
 
 	// Playlist commands (only if database is available)
 	if b.database != nil {
-		b.RegisterCommand("playlist", b.handlePlaylistCommand)
+		b.commandHandlers["playlist_create"] = b.handlePlaylistCreateSlashCommand
+		b.commandHandlers["playlist_list"] = b.handlePlaylistListSlashCommand
+		b.commandHandlers["playlist_show"] = b.handlePlaylistShowSlashCommand
+		b.commandHandlers["playlist_play"] = b.handlePlaylistPlaySlashCommand
+		b.commandHandlers["playlist_add"] = b.handlePlaylistAddSlashCommand
+		b.commandHandlers["playlist_remove"] = b.handlePlaylistRemoveSlashCommand
+		b.commandHandlers["playlist_delete"] = b.handlePlaylistDeleteSlashCommand
 	}
 }
 
-// handlePlayCommand handles the play command.
-func (b *Bot) handlePlayCommand(ctx *discord.CommandContext) error {
+// registerSlashCommandsWithDiscord registers slash commands with Discord API.
+func (b *Bot) registerSlashCommandsWithDiscord() error {
+	commands := []*discordgo.ApplicationCommand{
+		{
+			Name:        "play",
+			Description: "Play music from YouTube",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "query",
+					Description: "YouTube URL or search query",
+					Required:    true,
+				},
+			},
+		},
+		{
+			Name:        "pause",
+			Description: "Pause the current song",
+		},
+		{
+			Name:        "resume",
+			Description: "Resume playback",
+		},
+		{
+			Name:        "skip",
+			Description: "Skip the current song",
+		},
+		{
+			Name:        "stop",
+			Description: "Stop music and disconnect",
+		},
+		{
+			Name:        "queue",
+			Description: "Show the music queue",
+		},
+		{
+			Name:        "volume",
+			Description: "Set or show volume level",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionInteger,
+					Name:        "level",
+					Description: "Volume level (0-100)",
+					Required:    false,
+					MinValue:    func() *float64 { v := 0.0; return &v }(),
+					MaxValue:    100,
+				},
+			},
+		},
+	}
+
+	// Add playlist commands if database is available
+	if b.database != nil {
+		playlistCommands := []*discordgo.ApplicationCommand{
+			{
+				Name:        "playlist_create",
+				Description: "Create a new playlist",
+				Options: []*discordgo.ApplicationCommandOption{
+					{
+						Type:        discordgo.ApplicationCommandOptionString,
+						Name:        "name",
+						Description: "Playlist name",
+						Required:    true,
+					},
+				},
+			},
+			{
+				Name:        "playlist_list",
+				Description: "List your playlists",
+			},
+			{
+				Name:        "playlist_show",
+				Description: "Show songs in a playlist",
+				Options: []*discordgo.ApplicationCommandOption{
+					{
+						Type:        discordgo.ApplicationCommandOptionInteger,
+						Name:        "playlist_id",
+						Description: "Playlist ID",
+						Required:    true,
+					},
+				},
+			},
+			{
+				Name:        "playlist_play",
+				Description: "Queue an entire playlist",
+				Options: []*discordgo.ApplicationCommandOption{
+					{
+						Type:        discordgo.ApplicationCommandOptionInteger,
+						Name:        "playlist_id",
+						Description: "Playlist ID",
+						Required:    true,
+					},
+				},
+			},
+			{
+				Name:        "playlist_add",
+				Description: "Add current song to playlist",
+				Options: []*discordgo.ApplicationCommandOption{
+					{
+						Type:        discordgo.ApplicationCommandOptionInteger,
+						Name:        "playlist_id",
+						Description: "Playlist ID",
+						Required:    true,
+					},
+				},
+			},
+			{
+				Name:        "playlist_remove",
+				Description: "Remove a song from playlist",
+				Options: []*discordgo.ApplicationCommandOption{
+					{
+						Type:        discordgo.ApplicationCommandOptionInteger,
+						Name:        "playlist_id",
+						Description: "Playlist ID",
+						Required:    true,
+					},
+					{
+						Type:        discordgo.ApplicationCommandOptionInteger,
+						Name:        "song_number",
+						Description: "Song position in playlist",
+						Required:    true,
+					},
+				},
+			},
+			{
+				Name:        "playlist_delete",
+				Description: "Delete a playlist",
+				Options: []*discordgo.ApplicationCommandOption{
+					{
+						Type:        discordgo.ApplicationCommandOptionInteger,
+						Name:        "playlist_id",
+						Description: "Playlist ID",
+						Required:    true,
+					},
+				},
+			},
+		}
+		commands = append(commands, playlistCommands...)
+	}
+
+	logger := logging.WithComponent("music-bot")
+	var guildID string
+	if b.isValidGuildID(b.GetConfig().GuildID) {
+		guildID = b.GetConfig().GuildID
+		logger.Info("Registering guild-specific commands", "guild_id", guildID)
+	} else {
+		if b.GetConfig().GuildID != "" {
+			logger.Warn("Invalid guild ID provided, falling back to global commands", "invalid_guild_id", b.GetConfig().GuildID)
+		} else {
+			logger.Info("No guild ID provided, registering global commands")
+		}
+		guildID = ""
+	}
+
+	for _, command := range commands {
+		_, err := b.GetSession().ApplicationCommandCreate(b.GetSession().State.User.ID, guildID, command)
+		if err != nil {
+			return errors.NewDiscordError(fmt.Sprintf("failed to register slash command %s", command.Name), err)
+		}
+		logger.Info("Registered slash command", "command", command.Name)
+	}
+
+	return nil
+}
+
+// isValidGuildID checks if the guild ID is a valid Discord snowflake.
+func (b *Bot) isValidGuildID(guildID string) bool {
+	if guildID == "" {
+		return false
+	}
+
+	// Discord snowflakes are 17-19 digit numbers
+	if len(guildID) < 17 || len(guildID) > 19 {
+		return false
+	}
+
+	// Check if all characters are digits
+	for _, char := range guildID {
+		if char < '0' || char > '9' {
+			return false
+		}
+	}
+
+	return true
+}
+
+// onInteractionCreate handles slash command interactions.
+func (b *Bot) onInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	if i.ApplicationCommandData().Name == "" {
+		return
+	}
+
+	startTime := time.Now()
+	commandName := i.ApplicationCommandData().Name
+
+	logger := logging.WithComponent("music-bot")
+	logger.Debug("Received slash command", "command", commandName, "user", getUserID(i))
+
+	handler, exists := b.commandHandlers[commandName]
+	if !exists {
+		b.respondWithError(s, i, "Unknown command")
+		return
+	}
+
+	// Execute command
+	err := handler(s, i)
+	success := err == nil
+
+	// Record metrics
+	metrics.RecordCommand(commandName, getUserID(i), success, time.Since(startTime))
+
+	// Handle errors
+	if err != nil {
+		logger.Error("Slash command failed", "command", commandName, "error", err)
+		b.respondWithError(s, i, "Command failed: "+err.Error())
+	}
+}
+
+// Helper functions for interaction handling
+func getUserID(i *discordgo.InteractionCreate) string {
+	if i.Member != nil {
+		return i.Member.User.ID
+	}
+	return i.User.ID
+}
+
+func getUsername(i *discordgo.InteractionCreate) string {
+	if i.Member != nil {
+		return i.Member.User.Username
+	}
+	return i.User.Username
+}
+
+func (b *Bot) respondWithError(s *discordgo.Session, i *discordgo.InteractionCreate, message string) {
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: "❌ " + message,
+			Flags:   discordgo.MessageFlagsEphemeral,
+		},
+	})
+	if err != nil {
+		logger := logging.WithComponent("music-bot")
+		logger.Error("Failed to send error response", "error", err)
+	}
+}
+
+// handlePlaySlashCommand handles the /play slash command.
+func (b *Bot) handlePlaySlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 	startTime := time.Now()
 
-	if len(ctx.Args) == 0 {
+	// Get command options
+	options := i.ApplicationCommandData().Options
+	if len(options) == 0 || options[0].Name != "query" {
 		return errors.NewValidationError("Please provide a song name or URL")
 	}
 
-	// Validate input
-	query := strings.Join(ctx.Args, " ")
+	query := options[0].StringValue()
 	if err := discord.ValidateInput(query, 500); err != nil {
 		return err
 	}
 
+	userID := getUserID(i)
+	username := getUsername(i)
+	guildID := i.GuildID
+
 	// Check if user is in a voice channel
-	voiceState, err := b.getUserVoiceState(ctx.Session, ctx.GuildID, ctx.UserID)
+	voiceState, err := b.getUserVoiceState(s, guildID, userID)
 	if err != nil {
 		return errors.NewDiscordError("failed to get voice state", err)
 	}
@@ -127,191 +401,450 @@ func (b *Bot) handlePlayCommand(ctx *discord.CommandContext) error {
 		return errors.NewValidationError("You must be in a voice channel to play music")
 	}
 
-	// Send typing indicator
-	discord.SendTyping(ctx.Session, ctx.ChannelID)
+	// Defer the response to avoid timeout
+	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+	})
+	if err != nil {
+		return errors.NewDiscordError("failed to defer response", err)
+	}
 
 	// Extract song information
 	song, err := b.extractSongInfo(query)
 	if err != nil {
 		metrics.RecordAPIRequest("youtube", "extract", false, time.Since(startTime))
-		return errors.NewAPIError("could not find or load the requested song", err)
+		_, followErr := s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
+			Content: fmt.Sprintf("❌ Could not find or load the requested song: %s", err.Error()),
+			Flags:   discordgo.MessageFlagsEphemeral,
+		})
+		if followErr != nil {
+			return followErr
+		}
+		return err
 	}
 
-	song.RequesterID = ctx.UserID
-	song.RequesterName = ctx.Username
+	song.RequesterID = userID
+	song.RequesterName = username
 
 	// Get or create audio connection
-	audioConn, err := b.audioPlayer.GetConnection(ctx.Session, ctx.GuildID, voiceState.ChannelID)
+	audioConn, err := b.audioPlayer.GetConnection(s, guildID, voiceState.ChannelID)
 	if err != nil {
-		return errors.NewDiscordError("failed to connect to voice channel", err)
+		_, followErr := s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
+			Content: fmt.Sprintf("❌ Failed to connect to voice channel: %s", err.Error()),
+			Flags:   discordgo.MessageFlagsEphemeral,
+		})
+		if followErr != nil {
+			return followErr
+		}
+		return err
 	}
 
 	// Add to queue
-	queue := b.queueManager.GetQueue(ctx.GuildID)
+	queue := b.queueManager.GetQueue(guildID)
 	position := queue.Add(song)
 
 	var response string
 	if position == 0 && !queue.IsPlaying() {
 		response = fmt.Sprintf("🎵 Now playing: **%s**", song.Title)
-		go b.audioPlayer.PlayNext(ctx.Session, ctx.GuildID, audioConn, queue)
+		go b.audioPlayer.PlayNext(s, guildID, audioConn, queue)
 	} else {
 		response = fmt.Sprintf("🎵 Added to queue: **%s**\nPosition in queue: %d", song.Title, position+1)
 	}
 
-	_, err = ctx.Session.ChannelMessageSend(ctx.ChannelID, response)
+	_, err = s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
+		Content: response,
+	})
 
-	metrics.RecordCommand("play", ctx.UserID, err == nil, time.Since(startTime))
+	metrics.RecordCommand("play", userID, err == nil, time.Since(startTime))
 	return err
 }
 
-// handlePauseCommand handles the pause command.
-func (b *Bot) handlePauseCommand(ctx *discord.CommandContext) error {
+// handlePauseSlashCommand handles the /pause slash command.
+func (b *Bot) handlePauseSlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 	startTime := time.Now()
+	userID := getUserID(i)
+	guildID := i.GuildID
 
-	queue := b.queueManager.GetQueue(ctx.GuildID)
+	queue := b.queueManager.GetQueue(guildID)
 	if !queue.IsPlaying() {
-		return errors.NewValidationError("Nothing is currently playing")
+		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "❌ Nothing is currently playing",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		metrics.RecordCommand("pause", userID, false, time.Since(startTime))
+		return err
 	}
 
+	// Pause both queue and audio stream
 	queue.SetPaused(true)
-	_, err := ctx.Session.ChannelMessageSend(ctx.ChannelID, "⏸️ Paused the current song")
+	b.audioPlayer.enhanced.PauseStream(guildID)
 
-	metrics.RecordCommand("pause", ctx.UserID, err == nil, time.Since(startTime))
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: "⏸️ Paused the current song",
+		},
+	})
+
+	metrics.RecordCommand("pause", userID, err == nil, time.Since(startTime))
 	return err
 }
 
-// handleResumeCommand handles the resume command.
-func (b *Bot) handleResumeCommand(ctx *discord.CommandContext) error {
+// handleResumeSlashCommand handles the /resume slash command.
+func (b *Bot) handleResumeSlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 	startTime := time.Now()
+	userID := getUserID(i)
+	guildID := i.GuildID
 
-	queue := b.queueManager.GetQueue(ctx.GuildID)
+	queue := b.queueManager.GetQueue(guildID)
 	if !queue.IsPaused() {
-		return errors.NewValidationError("Nothing is currently paused")
+		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "❌ Nothing is currently paused",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		metrics.RecordCommand("resume", userID, false, time.Since(startTime))
+		return err
 	}
 
+	// Resume both queue and audio stream
 	queue.SetPaused(false)
-	_, err := ctx.Session.ChannelMessageSend(ctx.ChannelID, "▶️ Resumed the current song")
+	b.audioPlayer.enhanced.ResumeStream(guildID)
 
-	metrics.RecordCommand("resume", ctx.UserID, err == nil, time.Since(startTime))
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: "▶️ Resumed the current song",
+		},
+	})
+
+	metrics.RecordCommand("resume", userID, err == nil, time.Since(startTime))
 	return err
 }
 
-// handleSkipCommand handles the skip command.
-func (b *Bot) handleSkipCommand(ctx *discord.CommandContext) error {
+// handleSkipSlashCommand handles the /skip slash command.
+func (b *Bot) handleSkipSlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 	startTime := time.Now()
+	userID := getUserID(i)
+	guildID := i.GuildID
 
-	queue := b.queueManager.GetQueue(ctx.GuildID)
+	queue := b.queueManager.GetQueue(guildID)
 	if !queue.IsPlaying() {
-		return errors.NewValidationError("Nothing is currently playing")
+		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "❌ Nothing is currently playing",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		metrics.RecordCommand("skip", userID, false, time.Since(startTime))
+		return err
 	}
 
 	current := queue.Current()
 	queue.Skip()
+
+	// Stop current audio stream to trigger next song
+	b.audioPlayer.enhanced.StopStream(guildID)
 
 	response := "⏭️ Skipped the current song"
 	if current != nil {
 		response = fmt.Sprintf("⏭️ Skipped **%s**", current.Title)
 	}
 
-	_, err := ctx.Session.ChannelMessageSend(ctx.ChannelID, response)
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: response,
+		},
+	})
 
-	metrics.RecordCommand("skip", ctx.UserID, err == nil, time.Since(startTime))
+	metrics.RecordCommand("skip", userID, err == nil, time.Since(startTime))
 	return err
 }
 
-// handleStopCommand handles the stop command.
-func (b *Bot) handleStopCommand(ctx *discord.CommandContext) error {
+// handleStopSlashCommand handles the /stop slash command.
+func (b *Bot) handleStopSlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 	startTime := time.Now()
+	userID := getUserID(i)
+	guildID := i.GuildID
 
-	// Disconnect from voice and clear queue
-	b.audioPlayer.Disconnect(ctx.GuildID)
-	b.queueManager.ClearQueue(ctx.GuildID)
+	// Stop audio stream, disconnect from voice and clear queue
+	b.audioPlayer.enhanced.StopStream(guildID)
+	b.audioPlayer.Disconnect(guildID)
+	b.queueManager.ClearQueue(guildID)
 
-	_, err := ctx.Session.ChannelMessageSend(ctx.ChannelID, "⏹️ Stopped music and disconnected from voice channel")
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: "⏹️ Stopped music and disconnected from voice channel",
+		},
+	})
 
-	metrics.RecordCommand("stop", ctx.UserID, err == nil, time.Since(startTime))
+	metrics.RecordCommand("stop", userID, err == nil, time.Since(startTime))
 	return err
 }
 
-// handleQueueCommand handles the queue command.
-func (b *Bot) handleQueueCommand(ctx *discord.CommandContext) error {
+// handleQueueSlashCommand handles the /queue slash command.
+func (b *Bot) handleQueueSlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 	startTime := time.Now()
+	userID := getUserID(i)
+	guildID := i.GuildID
 
-	queue := b.queueManager.GetQueue(ctx.GuildID)
+	queue := b.queueManager.GetQueue(guildID)
 
 	if queue.Current() == nil && queue.IsEmpty() {
-		_, err := ctx.Session.ChannelMessageSend(ctx.ChannelID, "📭 The queue is empty")
-		metrics.RecordCommand("queue", ctx.UserID, err == nil, time.Since(startTime))
+		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "📭 The queue is empty",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		metrics.RecordCommand("queue", userID, err == nil, time.Since(startTime))
 		return err
 	}
 
 	embed := b.buildQueueEmbed(queue)
-	_, err := ctx.Session.ChannelMessageSendEmbed(ctx.ChannelID, embed)
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Embeds: []*discordgo.MessageEmbed{embed},
+		},
+	})
 
-	metrics.RecordCommand("queue", ctx.UserID, err == nil, time.Since(startTime))
+	metrics.RecordCommand("queue", userID, err == nil, time.Since(startTime))
 	return err
 }
 
-// handleVolumeCommand handles the volume command.
-func (b *Bot) handleVolumeCommand(ctx *discord.CommandContext) error {
+// handleVolumeSlashCommand handles the /volume slash command.
+func (b *Bot) handleVolumeSlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 	startTime := time.Now()
+	userID := getUserID(i)
+	guildID := i.GuildID
 
-	if len(ctx.Args) == 0 {
+	options := i.ApplicationCommandData().Options
+
+	if len(options) == 0 {
 		// Show current volume
-		volume := b.audioPlayer.GetVolume(ctx.GuildID)
-		_, err := ctx.Session.ChannelMessageSend(ctx.ChannelID, fmt.Sprintf("🔊 Current volume: %d%%", int(volume*100)))
-		metrics.RecordCommand("volume", ctx.UserID, err == nil, time.Since(startTime))
+		volume := b.audioPlayer.GetVolume(guildID)
+		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: fmt.Sprintf("🔊 Current volume: %d%%", int(volume*100)),
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		metrics.RecordCommand("volume", userID, err == nil, time.Since(startTime))
 		return err
 	}
 
-	// Parse volume level
-	var volume int
-	if _, err := fmt.Sscanf(ctx.Args[0], "%d", &volume); err != nil {
-		return errors.NewValidationError("Please provide a valid volume level (0-100)")
-	}
+	// Get volume level from options
+	volume := int(options[0].IntValue())
 
 	if volume < 0 || volume > 100 {
-		return errors.NewValidationError("Volume must be between 0 and 100")
+		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "❌ Volume must be between 0 and 100",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		metrics.RecordCommand("volume", userID, false, time.Since(startTime))
+		return err
 	}
 
 	volumeFloat := float64(volume) / 100.0
-	b.audioPlayer.SetVolume(ctx.GuildID, volumeFloat)
+	// Set volume for both base player and active stream
+	b.audioPlayer.enhanced.SetStreamVolume(guildID, volumeFloat)
 
-	_, err := ctx.Session.ChannelMessageSend(ctx.ChannelID, fmt.Sprintf("🔊 Volume set to %d%%", volume))
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: fmt.Sprintf("🔊 Volume set to %d%%", volume),
+		},
+	})
 
-	metrics.RecordCommand("volume", ctx.UserID, err == nil, time.Since(startTime))
+	metrics.RecordCommand("volume", userID, err == nil, time.Since(startTime))
 	return err
 }
 
-// handlePlaylistCommand handles playlist subcommands.
-func (b *Bot) handlePlaylistCommand(ctx *discord.CommandContext) error {
+// Playlist slash command handlers
+
+// handlePlaylistCreateSlashCommand handles the /playlist_create slash command.
+func (b *Bot) handlePlaylistCreateSlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 	if b.database == nil {
-		return errors.NewValidationError("Playlist functionality is not available")
+		return b.respondPlaylistNotAvailable(s, i)
 	}
 
-	if len(ctx.Args) == 0 {
-		return errors.NewValidationError("Please specify a playlist subcommand: create, list, show, play, add, remove, delete")
+	startTime := time.Now()
+	userID := getUserID(i)
+	guildID := i.GuildID
+
+	options := i.ApplicationCommandData().Options
+	if len(options) == 0 || options[0].Name != "name" {
+		return b.respondWithSlashError(s, i, "Please provide a playlist name")
 	}
 
-	subcommand := strings.ToLower(ctx.Args[0])
-	switch subcommand {
-	case "create":
-		return b.handlePlaylistCreate(ctx)
-	case "list":
-		return b.handlePlaylistList(ctx)
-	case "show":
-		return b.handlePlaylistShow(ctx)
-	case "play":
-		return b.handlePlaylistPlay(ctx)
-	case "add":
-		return b.handlePlaylistAdd(ctx)
-	case "remove":
-		return b.handlePlaylistRemove(ctx)
-	case "delete":
-		return b.handlePlaylistDelete(ctx)
-	default:
-		return errors.NewValidationError("Unknown playlist subcommand. Available: create, list, show, play, add, remove, delete")
+	name := options[0].StringValue()
+	if len(name) > 50 {
+		return b.respondWithSlashError(s, i, "Playlist name must be 50 characters or less")
 	}
+
+	playlistID, err := b.database.CreatePlaylist(userID, guildID, name)
+	if err != nil {
+		logger := logging.WithComponent("playlist")
+		logging.LogError(logger, err, "Failed to create playlist")
+		return b.respondWithSlashError(s, i, "Failed to create playlist")
+	}
+
+	response := fmt.Sprintf("✅ Created playlist **%s** (ID: %d)", name, playlistID)
+	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: response,
+		},
+	})
+
+	metrics.RecordCommand("playlist_create", userID, err == nil, time.Since(startTime))
+	return err
+}
+
+// handlePlaylistListSlashCommand handles the /playlist_list slash command.
+func (b *Bot) handlePlaylistListSlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+	if b.database == nil {
+		return b.respondPlaylistNotAvailable(s, i)
+	}
+
+	startTime := time.Now()
+	userID := getUserID(i)
+	username := getUsername(i)
+	guildID := i.GuildID
+
+	playlists, err := b.database.GetUserPlaylists(userID, guildID)
+	if err != nil {
+		logger := logging.WithComponent("playlist")
+		logging.LogError(logger, err, "Failed to list playlists")
+		return b.respondWithSlashError(s, i, "Failed to list playlists")
+	}
+
+	if len(playlists) == 0 {
+		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "📝 You don't have any playlists yet. Use `/playlist_create` to make one!",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		metrics.RecordCommand("playlist_list", userID, err == nil, time.Since(startTime))
+		return err
+	}
+
+	embed := discord.CreateEmbed(fmt.Sprintf("🎵 %s's Playlists", username), "", "info")
+
+	displayCount := len(playlists)
+	if displayCount > 10 {
+		displayCount = 10
+	}
+
+	for i := 0; i < displayCount; i++ {
+		playlist := playlists[i]
+		songCount := len(playlist.Songs)
+		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
+			Name:   fmt.Sprintf("%s (ID: %d)", playlist.Name, playlist.ID),
+			Value:  fmt.Sprintf("%d song%s", songCount, map[bool]string{true: "", false: "s"}[songCount == 1]),
+			Inline: true,
+		})
+	}
+
+	if len(playlists) > 10 {
+		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
+			Name:   "",
+			Value:  fmt.Sprintf("... and %d more playlists", len(playlists)-10),
+			Inline: false,
+		})
+	}
+
+	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Embeds: []*discordgo.MessageEmbed{embed},
+		},
+	})
+
+	metrics.RecordCommand("playlist_list", userID, err == nil, time.Since(startTime))
+	return err
+}
+
+// handlePlaylistShowSlashCommand handles the /playlist_show slash command.
+func (b *Bot) handlePlaylistShowSlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+	if b.database == nil {
+		return b.respondPlaylistNotAvailable(s, i)
+	}
+
+	return b.respondWithSlashError(s, i, "🚧 Playlist show not yet implemented")
+}
+
+// handlePlaylistPlaySlashCommand handles the /playlist_play slash command.
+func (b *Bot) handlePlaylistPlaySlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+	if b.database == nil {
+		return b.respondPlaylistNotAvailable(s, i)
+	}
+
+	return b.respondWithSlashError(s, i, "🚧 Playlist play not yet implemented")
+}
+
+// handlePlaylistAddSlashCommand handles the /playlist_add slash command.
+func (b *Bot) handlePlaylistAddSlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+	if b.database == nil {
+		return b.respondPlaylistNotAvailable(s, i)
+	}
+
+	return b.respondWithSlashError(s, i, "🚧 Playlist add not yet implemented")
+}
+
+// handlePlaylistRemoveSlashCommand handles the /playlist_remove slash command.
+func (b *Bot) handlePlaylistRemoveSlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+	if b.database == nil {
+		return b.respondPlaylistNotAvailable(s, i)
+	}
+
+	return b.respondWithSlashError(s, i, "🚧 Playlist remove not yet implemented")
+}
+
+// handlePlaylistDeleteSlashCommand handles the /playlist_delete slash command.
+func (b *Bot) handlePlaylistDeleteSlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+	if b.database == nil {
+		return b.respondPlaylistNotAvailable(s, i)
+	}
+
+	return b.respondWithSlashError(s, i, "🚧 Playlist delete not yet implemented")
+}
+
+// Helper methods for slash command responses
+func (b *Bot) respondPlaylistNotAvailable(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+	return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: "❌ Playlist functionality is not available",
+			Flags:   discordgo.MessageFlagsEphemeral,
+		},
+	})
+}
+
+func (b *Bot) respondWithSlashError(s *discordgo.Session, i *discordgo.InteractionCreate, message string) error {
+	return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: message,
+			Flags:   discordgo.MessageFlagsEphemeral,
+		},
+	})
 }
 
 // Helper methods
@@ -332,15 +865,9 @@ func (b *Bot) getUserVoiceState(s *discordgo.Session, guildID, userID string) (*
 	return nil, nil
 }
 
-// extractSongInfo extracts song information from a query.
+// extractSongInfo extracts song information from a query using yt-dlp.
 func (b *Bot) extractSongInfo(query string) (*Song, error) {
-	// This would integrate with yt-dlp or similar
-	// For now, return a mock song
-	return &Song{
-		Title:    query,
-		URL:      "https://example.com/" + query,
-		Duration: new(int),
-	}, nil
+	return b.audioExtractor.ExtractSongInfo(query)
 }
 
 // buildQueueEmbed builds an embed showing the current queue.
@@ -389,102 +916,4 @@ func (b *Bot) buildQueueEmbed(queue *Queue) *discordgo.MessageEmbed {
 	}
 
 	return embed
-}
-
-// Playlist command implementations
-
-func (b *Bot) handlePlaylistCreate(ctx *discord.CommandContext) error {
-	startTime := time.Now()
-
-	if len(ctx.Args) < 2 {
-		return errors.NewValidationError("Please provide a playlist name")
-	}
-
-	name := strings.Join(ctx.Args[1:], " ")
-	if len(name) > 50 {
-		return errors.NewValidationError("Playlist name must be 50 characters or less")
-	}
-
-	playlistID, err := b.database.CreatePlaylist(ctx.UserID, ctx.GuildID, name)
-	if err != nil {
-		logging.LogError(logging.WithComponent("playlist"), err, "Failed to create playlist")
-		return errors.NewDatabaseError("failed to create playlist", err)
-	}
-
-	response := fmt.Sprintf("✅ Created playlist **%s** (ID: %d)", name, playlistID)
-	_, err = ctx.Session.ChannelMessageSend(ctx.ChannelID, response)
-
-	metrics.RecordCommand("playlist_create", ctx.UserID, err == nil, time.Since(startTime))
-	return err
-}
-
-func (b *Bot) handlePlaylistList(ctx *discord.CommandContext) error {
-	startTime := time.Now()
-
-	playlists, err := b.database.GetUserPlaylists(ctx.UserID, ctx.GuildID)
-	if err != nil {
-		logging.LogError(logging.WithComponent("playlist"), err, "Failed to list playlists")
-		return errors.NewDatabaseError("failed to list playlists", err)
-	}
-
-	if len(playlists) == 0 {
-		_, err := ctx.Session.ChannelMessageSend(ctx.ChannelID, "📝 You don't have any playlists yet. Use `!playlist create <name>` to make one!")
-		metrics.RecordCommand("playlist_list", ctx.UserID, err == nil, time.Since(startTime))
-		return err
-	}
-
-	embed := discord.CreateEmbed(fmt.Sprintf("🎵 %s's Playlists", ctx.Username), "", "info")
-
-	displayCount := len(playlists)
-	if displayCount > 10 {
-		displayCount = 10
-	}
-
-	for i := 0; i < displayCount; i++ {
-		playlist := playlists[i]
-		songCount := len(playlist.Songs)
-		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
-			Name:   fmt.Sprintf("%s (ID: %d)", playlist.Name, playlist.ID),
-			Value:  fmt.Sprintf("%d song%s", songCount, map[bool]string{true: "", false: "s"}[songCount == 1]),
-			Inline: true,
-		})
-	}
-
-	if len(playlists) > 10 {
-		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
-			Name:   "",
-			Value:  fmt.Sprintf("... and %d more playlists", len(playlists)-10),
-			Inline: false,
-		})
-	}
-
-	_, err = ctx.Session.ChannelMessageSendEmbed(ctx.ChannelID, embed)
-
-	metrics.RecordCommand("playlist_list", ctx.UserID, err == nil, time.Since(startTime))
-	return err
-}
-
-func (b *Bot) handlePlaylistShow(ctx *discord.CommandContext) error {
-	// Implementation for showing playlist contents
-	return errors.NewValidationError("🚧 Playlist show not yet implemented")
-}
-
-func (b *Bot) handlePlaylistPlay(ctx *discord.CommandContext) error {
-	// Implementation for playing a playlist
-	return errors.NewValidationError("🚧 Playlist play not yet implemented")
-}
-
-func (b *Bot) handlePlaylistAdd(ctx *discord.CommandContext) error {
-	// Implementation for adding to playlist
-	return errors.NewValidationError("🚧 Playlist add not yet implemented")
-}
-
-func (b *Bot) handlePlaylistRemove(ctx *discord.CommandContext) error {
-	// Implementation for removing from playlist
-	return errors.NewValidationError("🚧 Playlist remove not yet implemented")
-}
-
-func (b *Bot) handlePlaylistDelete(ctx *discord.CommandContext) error {
-	// Implementation for deleting playlist
-	return errors.NewValidationError("🚧 Playlist delete not yet implemented")
 }

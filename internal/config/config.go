@@ -152,7 +152,16 @@ func (c *Config) Validate() error {
 // validate validates a bot configuration.
 func (bc *BotConfig) validate(botName string) error {
 	if bc.DiscordToken == "" {
-		return fmt.Errorf("%s bot: discord_token is required", botName)
+		var tokenName string
+		switch botName {
+		case "Clippy":
+			tokenName = "CLIPPY_DISCORD_TOKEN"
+		case "Music":
+			tokenName = "MUSIC_DISCORD_TOKEN"
+		default:
+			tokenName = "DISCORD_TOKEN"
+		}
+		return fmt.Errorf("%s bot: %s is required", botName, tokenName)
 	}
 
 	if bc.BotName == "" {

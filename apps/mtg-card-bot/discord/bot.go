@@ -14,11 +14,11 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/cache"
-	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/errors"
+	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/config"
 	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/logging"
 	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/metrics"
 	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/scryfall"
-	"github.com/sawyer/go-discord-bots/pkg/config"
+	"github.com/sawyer/go-discord-bots/pkg/errors"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )

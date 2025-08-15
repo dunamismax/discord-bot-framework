@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/sawyer/go-discord-bots/internal/errors"
+	"github.com/sawyer/go-discord-bots/pkg/errors"
 )
 
 // AudioExtractor handles extracting audio information from various sources.

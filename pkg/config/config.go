@@ -143,10 +143,7 @@ func getDefaultConfig(botType BotType) *Config {
 
 // loadFromEnvironment loads configuration from environment variables.
 func (c *Config) loadFromEnvironment() error {
-	// Common environment variables
-	if token := os.Getenv("DISCORD_TOKEN"); token != "" {
-		c.DiscordToken = token
-	}
+	// Common environment variables (no global token)
 	if prefix := os.Getenv("COMMAND_PREFIX"); prefix != "" {
 		c.CommandPrefix = prefix
 	}
@@ -220,7 +217,12 @@ func (c *Config) loadFromEnvironment() error {
 		}
 
 	case BotTypeMTG:
-		// MTG bot uses DISCORD_TOKEN by default, already handled above
+		if token := os.Getenv("MTG_DISCORD_TOKEN"); token != "" {
+			c.DiscordToken = token
+		}
+		if guildID := os.Getenv("MTG_GUILD_ID"); guildID != "" {
+			c.GuildID = guildID
+		}
 		if ttl := os.Getenv("CACHE_TTL"); ttl != "" {
 			if parsed, err := time.ParseDuration(ttl); err == nil {
 				c.CacheTTL = parsed
@@ -235,7 +237,18 @@ func (c *Config) loadFromEnvironment() error {
 // Validate validates the configuration.
 func (c *Config) Validate() error {
 	if c.DiscordToken == "" {
-		return fmt.Errorf("%s bot: discord_token is required", c.BotType)
+		var tokenName string
+		switch c.BotType {
+		case BotTypeClipper:
+			tokenName = "CLIPPY_DISCORD_TOKEN"
+		case BotTypeMusic:
+			tokenName = "MUSIC_DISCORD_TOKEN"
+		case BotTypeMTG:
+			tokenName = "MTG_DISCORD_TOKEN"
+		default:
+			tokenName = "DISCORD_TOKEN"
+		}
+		return fmt.Errorf("%s bot: %s is required", c.BotType, tokenName)
 	}
 
 	if c.BotName == "" {

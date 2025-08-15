@@ -1,109 +1,26 @@
 // Package main provides types for the Music bot.
 package main
 
-// Song type is defined in queue.go - no need to duplicate it here
+import (
+	"context"
+	"sync"
 
-// Queue represents a music queue for a guild.
-type Queue struct {
-	current *Song
-	songs   []*Song
-	playing bool
-	paused  bool
-	skip    bool
-}
+	"github.com/bwmarrin/discordgo"
+	"github.com/sawyer/go-discord-bots/pkg/logging"
+)
+
+// Queue represents a music queue for a guild - uses MusicQueue from queue.go
+type Queue = MusicQueue
 
 // NewQueue creates a new music queue.
 func NewQueue() *Queue {
-	return &Queue{
-		songs: make([]*Song, 0),
-	}
-}
-
-// Add adds a song to the queue and returns its position.
-func (q *Queue) Add(song *Song) int {
-	q.songs = append(q.songs, song)
-	return len(q.songs) - 1
-}
-
-// Next returns the next song in the queue.
-func (q *Queue) Next() *Song {
-	if len(q.songs) == 0 {
-		return nil
-	}
-	song := q.songs[0]
-	q.songs = q.songs[1:]
-	return song
-}
-
-// Current returns the currently playing song.
-func (q *Queue) Current() *Song {
-	return q.current
-}
-
-// SetCurrent sets the currently playing song.
-func (q *Queue) SetCurrent(song *Song) {
-	q.current = song
-}
-
-// IsEmpty returns true if the queue is empty.
-func (q *Queue) IsEmpty() bool {
-	return len(q.songs) == 0
-}
-
-// IsPlaying returns true if music is playing.
-func (q *Queue) IsPlaying() bool {
-	return q.playing
-}
-
-// SetPlaying sets the playing state.
-func (q *Queue) SetPlaying(playing bool) {
-	q.playing = playing
-}
-
-// IsPaused returns true if music is paused.
-func (q *Queue) IsPaused() bool {
-	return q.paused
-}
-
-// SetPaused sets the paused state.
-func (q *Queue) SetPaused(paused bool) {
-	q.paused = paused
-}
-
-// Skip skips the current song.
-func (q *Queue) Skip() {
-	q.skip = true
-}
-
-// ShouldSkip returns true if the current song should be skipped.
-func (q *Queue) ShouldSkip() bool {
-	return q.skip
-}
-
-// SetSkip sets the skip state.
-func (q *Queue) SetSkip(skip bool) {
-	q.skip = skip
-}
-
-// GetSongs returns a copy of the queue songs.
-func (q *Queue) GetSongs() []*Song {
-	songs := make([]*Song, len(q.songs))
-	copy(songs, q.songs)
-	return songs
-}
-
-// Clear clears the queue.
-func (q *Queue) Clear() {
-	q.songs = q.songs[:0]
-	q.current = nil
-	q.playing = false
-	q.paused = false
-	q.skip = false
+	return NewMusicQueue()
 }
 
 // QueueManager manages music queues for multiple guilds.
 type QueueManager struct {
 	queues map[string]*Queue
+	mutex  sync.RWMutex
 }
 
 // NewQueueManager creates a new queue manager.
@@ -115,6 +32,9 @@ func NewQueueManager() *QueueManager {
 
 // GetQueue gets or creates a queue for a guild.
 func (qm *QueueManager) GetQueue(guildID string) *Queue {
+	qm.mutex.Lock()
+	defer qm.mutex.Unlock()
+
 	if queue, exists := qm.queues[guildID]; exists {
 		return queue
 	}
@@ -125,6 +45,9 @@ func (qm *QueueManager) GetQueue(guildID string) *Queue {
 
 // ClearQueue clears a guild's queue.
 func (qm *QueueManager) ClearQueue(guildID string) {
+	qm.mutex.Lock()
+	defer qm.mutex.Unlock()
+
 	if queue, exists := qm.queues[guildID]; exists {
 		queue.Clear()
 	}
@@ -132,41 +55,133 @@ func (qm *QueueManager) ClearQueue(guildID string) {
 
 // Cleanup clears all queues.
 func (qm *QueueManager) Cleanup() {
+	qm.mutex.Lock()
+	defer qm.mutex.Unlock()
+
 	for guildID := range qm.queues {
-		qm.ClearQueue(guildID)
+		if queue, exists := qm.queues[guildID]; exists {
+			queue.Clear()
+		}
 	}
 }
 
 // AudioPlayer manages audio playback for multiple guilds.
 type AudioPlayer struct {
-	volumes map[string]float64
+	volumes     map[string]float64
+	connections map[string]*discordgo.VoiceConnection
+	enhanced    *EnhancedAudioPlayer
+	mutex       sync.RWMutex
 }
 
 // NewAudioPlayer creates a new audio player.
 func NewAudioPlayer() *AudioPlayer {
-	return &AudioPlayer{
-		volumes: make(map[string]float64),
+	ap := &AudioPlayer{
+		volumes:     make(map[string]float64),
+		connections: make(map[string]*discordgo.VoiceConnection),
 	}
+	// Create enhanced player after base player is created
+	ap.enhanced = &EnhancedAudioPlayer{
+		AudioPlayer: ap,
+		streams:     make(map[string]*AudioStream),
+	}
+	return ap
 }
 
-// GetConnection gets or creates an audio connection (stub implementation).
-func (ap *AudioPlayer) GetConnection(session interface{}, guildID, channelID string) (interface{}, error) {
-	// This would create a real Discord voice connection
-	return &struct{}{}, nil
+// GetConnection gets or creates a Discord voice connection.
+func (ap *AudioPlayer) GetConnection(session *discordgo.Session, guildID, channelID string) (*discordgo.VoiceConnection, error) {
+	ap.mutex.Lock()
+	defer ap.mutex.Unlock()
+
+	// Check if we already have a connection for this guild
+	if conn, exists := ap.connections[guildID]; exists {
+		if conn.ChannelID == channelID {
+			return conn, nil
+		}
+		// Different channel, disconnect and reconnect
+		if err := conn.Disconnect(); err != nil {
+			logger := logging.WithComponent("audio-player")
+			logger.Error("Failed to disconnect from voice channel", "error", err)
+		}
+		delete(ap.connections, guildID)
+	}
+
+	// Create new voice connection
+	conn, err := session.ChannelVoiceJoin(guildID, channelID, false, true)
+	if err != nil {
+		return nil, err
+	}
+
+	ap.connections[guildID] = conn
+	return conn, nil
 }
 
-// PlayNext plays the next song in queue (stub implementation).
-func (ap *AudioPlayer) PlayNext(session interface{}, guildID string, connection interface{}, queue *Queue) {
-	// This would implement actual audio playback
+// PlayNext plays the next song in queue.
+func (ap *AudioPlayer) PlayNext(session *discordgo.Session, guildID string, connection *discordgo.VoiceConnection, queue *Queue) {
+	ap.mutex.Lock()
+	defer ap.mutex.Unlock()
+
+	logger := logging.WithComponent("audio-player")
+
+	// Check if queue is empty
+	if queue.IsEmpty() {
+		queue.SetPlaying(false)
+		queue.SetCurrent(nil)
+		logger.Info("Queue is empty, stopping playback", "guild", guildID)
+		return
+	}
+
+	// Get next song
+	nextSong := queue.Next()
+	if nextSong == nil {
+		queue.SetPlaying(false)
+		queue.SetCurrent(nil)
+		return
+	}
+
+	// Set current song and playing state
+	queue.SetCurrent(nextSong)
+	queue.SetPlaying(true)
+	queue.SetSkip(false)
+
+	logger.Info("Playing next song", "guild", guildID, "song", nextSong.Title)
+
+	// Start playing the song using enhanced audio player
+	go func() {
+		ctx := context.Background()
+		err := ap.enhanced.PlaySong(ctx, guildID, nextSong, connection)
+		if err != nil {
+			logger.Error("Failed to play song", "error", err, "song", nextSong.Title)
+			// Try next song on error
+			ap.PlayNext(session, guildID, connection, queue)
+			return
+		}
+
+		// Song finished naturally, play next song if not skipped
+		if !queue.ShouldSkip() {
+			ap.PlayNext(session, guildID, connection, queue)
+		}
+	}()
 }
 
-// Disconnect disconnects from voice channel (stub implementation).
+// Disconnect disconnects from voice channel.
 func (ap *AudioPlayer) Disconnect(guildID string) {
-	// This would disconnect from voice
+	ap.mutex.Lock()
+	defer ap.mutex.Unlock()
+
+	if conn, exists := ap.connections[guildID]; exists {
+		if err := conn.Disconnect(); err != nil {
+			logger := logging.WithComponent("audio-player")
+			logger.Error("Failed to disconnect from voice channel", "error", err)
+		}
+		delete(ap.connections, guildID)
+	}
 }
 
 // GetVolume gets the volume for a guild.
 func (ap *AudioPlayer) GetVolume(guildID string) float64 {
+	ap.mutex.RLock()
+	defer ap.mutex.RUnlock()
+
 	if volume, exists := ap.volumes[guildID]; exists {
 		return volume
 	}
@@ -175,11 +190,30 @@ func (ap *AudioPlayer) GetVolume(guildID string) float64 {
 
 // SetVolume sets the volume for a guild.
 func (ap *AudioPlayer) SetVolume(guildID string, volume float64) {
+	ap.mutex.Lock()
+	defer ap.mutex.Unlock()
+
 	ap.volumes[guildID] = volume
 }
 
 // Cleanup clears all audio connections.
 func (ap *AudioPlayer) Cleanup() {
+	ap.mutex.Lock()
+	defer ap.mutex.Unlock()
+
+	// Clean up enhanced audio player first
+	if ap.enhanced != nil {
+		ap.enhanced.Cleanup()
+	}
+
+	// Disconnect all voice connections
+	for guildID, conn := range ap.connections {
+		if err := conn.Disconnect(); err != nil {
+			logger := logging.WithComponent("audio-player")
+			logger.Error("Failed to disconnect from voice channel", "error", err, "guild_id", guildID)
+		}
+		delete(ap.connections, guildID)
+	}
 	ap.volumes = make(map[string]float64)
 }
 

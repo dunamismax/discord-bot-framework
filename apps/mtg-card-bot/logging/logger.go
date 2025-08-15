@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	mtgErrors "github.com/sawyer/go-discord-bots/apps/mtg-card-bot/errors"
+	mtgErrors "github.com/sawyer/go-discord-bots/pkg/errors"
 )
 
 // DefaultLogger is the global logger instance.
@@ -92,24 +92,24 @@ func WithCard(cardName string) *slog.Logger {
 	return DefaultLogger.With("card_name", cardName)
 }
 
-// LogError logs an MTGError with appropriate structured fields.
+// LogError logs a BotError with appropriate structured fields.
 func LogError(logger *slog.Logger, err error, message string) {
-	var mtgErr *mtgErrors.MTGError
-	if errors.As(err, &mtgErr) {
+	var botErr *mtgErrors.BotError
+	if errors.As(err, &botErr) {
 		attrs := []slog.Attr{
-			slog.String("error_type", string(mtgErr.Type)),
-			slog.String("error_message", mtgErr.Message),
+			slog.String("error_type", string(botErr.ErrorType)),
+			slog.String("error_message", botErr.Message),
 		}
 
-		if mtgErr.StatusCode != 0 {
-			attrs = append(attrs, slog.Int("status_code", mtgErr.StatusCode))
+		if botErr.StatusCode != 0 {
+			attrs = append(attrs, slog.Int("status_code", botErr.StatusCode))
 		}
 
-		if mtgErr.Cause != nil {
-			attrs = append(attrs, slog.String("cause", mtgErr.Cause.Error()))
+		if botErr.Cause != nil {
+			attrs = append(attrs, slog.String("cause", botErr.Cause.Error()))
 		}
 
-		for key, value := range mtgErr.Context {
+		for key, value := range botErr.ContextData {
 			attrs = append(attrs, slog.Any(key, value))
 		}
 

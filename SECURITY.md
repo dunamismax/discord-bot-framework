@@ -115,6 +115,7 @@ Security updates will be released as patch versions (e.g., 2.0.1, 2.0.2) and wil
 - Upgrade instructions
 
 Subscribe to security updates:
+
 - GitHub Security Advisories: Follow this repository
 - Security mailing list: [security-announce@go-discord-bots.com](mailto:security-announce@go-discord-bots.com)
 

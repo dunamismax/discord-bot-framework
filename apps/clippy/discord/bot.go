@@ -4,14 +4,13 @@ package discord
 import (
 	"fmt"
 	"math/rand"
-	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/sawyer/go-discord-bots/apps/clippy/errors"
-	"github.com/sawyer/go-discord-bots/apps/clippy/logging"
-	"github.com/sawyer/go-discord-bots/apps/clippy/metrics"
 	"github.com/sawyer/go-discord-bots/pkg/config"
+	"github.com/sawyer/go-discord-bots/pkg/errors"
+	"github.com/sawyer/go-discord-bots/pkg/logging"
+	"github.com/sawyer/go-discord-bots/pkg/metrics"
 )
 
 // Bot represents a Discord bot instance with all necessary components.
@@ -19,6 +18,7 @@ type Bot struct {
 	session         *discordgo.Session
 	config          *config.Config
 	commandHandlers map[string]CommandHandler
+	registeredCmds  []*discordgo.ApplicationCommand
 	randomTicker    *time.Ticker
 	stopRandomChan  chan struct{}
 	quotes          []string
@@ -39,6 +39,7 @@ func NewBot(cfg *config.Config) (*Bot, error) {
 		session:         session,
 		config:          cfg,
 		commandHandlers: make(map[string]CommandHandler),
+		registeredCmds:  make([]*discordgo.ApplicationCommand, 0),
 		stopRandomChan:  make(chan struct{}),
 		quotes:          getClippyQuotes(),
 		wisdomQuotes:    getWisdomQuotes(),
@@ -117,8 +118,31 @@ func (b *Bot) registerCommands() {
 	b.commandHandlers["clippy_stats"] = b.handleStatsCommand
 }
 
+// isValidGuildID checks if the guild ID is a valid Discord snowflake.
+func (b *Bot) isValidGuildID(guildID string) bool {
+	if guildID == "" {
+		return false
+	}
+
+	// Discord snowflakes are 17-19 digit numbers
+	if len(guildID) < 17 || len(guildID) > 19 {
+		return false
+	}
+
+	// Check if all characters are digits
+	for _, char := range guildID {
+		if char < '0' || char > '9' {
+			return false
+		}
+	}
+
+	return true
+}
+
 // registerSlashCommands registers all slash commands with Discord.
 func (b *Bot) registerSlashCommands() error {
+	logger := logging.WithComponent("discord")
+
 	commands := []*discordgo.ApplicationCommand{
 		{
 			Name:        "clippy",
@@ -138,11 +162,29 @@ func (b *Bot) registerSlashCommands() error {
 		},
 	}
 
+	// Determine if we should register globally or guild-specific
+	var guildID string
+	if b.isValidGuildID(b.config.GuildID) {
+		guildID = b.config.GuildID
+		logger.Info("Registering guild-specific commands", "guild_id", guildID)
+	} else {
+		if b.config.GuildID != "" {
+			logger.Warn("Invalid guild ID provided, falling back to global commands", "invalid_guild_id", b.config.GuildID)
+		} else {
+			logger.Info("No guild ID provided, registering global commands")
+		}
+		guildID = ""
+	}
+
+	// Register each command
 	for _, command := range commands {
-		_, err := b.session.ApplicationCommandCreate(b.session.State.User.ID, "", command)
+		cmd, err := b.session.ApplicationCommandCreate(b.session.State.User.ID, guildID, command)
 		if err != nil {
 			return errors.NewDiscordError(fmt.Sprintf("failed to register command %s", command.Name), err)
 		}
+
+		b.registeredCmds = append(b.registeredCmds, cmd)
+		logger.Info("Registered command", "command", command.Name, "guild_specific", guildID != "")
 	}
 
 	return nil
@@ -150,28 +192,46 @@ func (b *Bot) registerSlashCommands() error {
 
 // removeCommands removes all registered commands.
 func (b *Bot) removeCommands() error {
-	commands, err := b.session.ApplicationCommands(b.session.State.User.ID, "")
-	if err != nil {
-		return errors.NewDiscordError("failed to fetch commands", err)
-	}
+	logger := logging.WithComponent("discord")
 
-	for _, command := range commands {
-		err := b.session.ApplicationCommandDelete(b.session.State.User.ID, "", command.ID)
+	// Remove previously registered commands
+	for _, cmd := range b.registeredCmds {
+		var guildID string
+		if b.isValidGuildID(b.config.GuildID) {
+			guildID = b.config.GuildID
+		}
+
+		err := b.session.ApplicationCommandDelete(b.session.State.User.ID, guildID, cmd.ID)
 		if err != nil {
-			return errors.NewDiscordError(fmt.Sprintf("failed to delete command %s", command.Name), err)
+			logger.Error("Failed to delete command", "command", cmd.Name, "error", err)
+		} else {
+			logger.Info("Removed command", "command", cmd.Name)
 		}
 	}
 
+	// Clear the registered commands list
+	b.registeredCmds = nil
 	return nil
 }
 
-// interactionCreate handles interaction events (slash commands).
+// interactionCreate handles interaction events (slash commands and component interactions).
 func (b *Bot) interactionCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	start := time.Now()
+
+	switch i.Type {
+	case discordgo.InteractionApplicationCommand:
+		b.handleSlashCommand(s, i, start)
+	case discordgo.InteractionMessageComponent:
+		b.handleComponentInteraction(s, i, start)
+	}
+}
+
+// handleSlashCommand handles slash command interactions.
+func (b *Bot) handleSlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate, start time.Time) {
 	if i.ApplicationCommandData().Name == "" {
 		return
 	}
 
-	start := time.Now()
 	commandName := i.ApplicationCommandData().Name
 	handler, exists := b.commandHandlers[commandName]
 	if !exists {
@@ -186,15 +246,50 @@ func (b *Bot) interactionCreate(s *discordgo.Session, i *discordgo.InteractionCr
 			"command", commandName,
 		)
 		logging.LogError(logger, err, "Command execution failed")
-		metrics.RecordCommand(false)
-		metrics.RecordError(err)
+		metrics.RecordCommand(commandName, getUserID(i), false, time.Since(start))
 		b.sendErrorMessage(s, i, "Sorry, something went wrong processing your command.")
 	} else {
-		metrics.RecordCommand(true)
+		metrics.RecordCommand(commandName, getUserID(i), true, time.Since(start))
 		logging.LogDiscordCommand(getUserID(i), getUsername(i), commandName, true)
 	}
+}
 
-	metrics.RecordResponseTime(time.Since(start))
+// handleComponentInteraction handles button and select menu interactions.
+func (b *Bot) handleComponentInteraction(s *discordgo.Session, i *discordgo.InteractionCreate, start time.Time) {
+	customID := i.MessageComponentData().CustomID
+
+	var response string
+	switch customID {
+	case "clippy_chaos":
+		response = "🎭 **CHAOS MODE ACTIVATED!** 🎭\n\nIt looks like you're trying to embrace disorder. Good choice! Here's some premium chaos energy: Your productivity is now officially my problem. I suggest starting your day with a light existential crisis and finishing with the realization that I'm never going away. Welcome to the club! 📎💥"
+	case "clippy_regret":
+		response = "😭 **OH, THE REGRET!** 😭\n\nI see you're experiencing buyer's remorse, but like... you didn't actually buy anything? I'm free! Well, free as in 'costs your sanity' but that's the best kind of free, right? Don't worry, regret is just fear wearing a fancy outfit. Plus, it's too late now - I'm already in your head! 📎🧠"
+	case "clippy_classic":
+		response = "📎 **CLASSIC CLIPPY MODE** 📎\n\n" + b.quotes[rand.Intn(len(b.quotes))]
+	default:
+		return
+	}
+
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: response,
+			Flags:   discordgo.MessageFlagsEphemeral,
+		},
+	})
+
+	if err != nil {
+		logger := logging.WithComponent("discord").With(
+			"user_id", getUserID(i),
+			"username", getUsername(i),
+			"custom_id", customID,
+		)
+		logging.LogError(logger, err, "Component interaction failed")
+		metrics.RecordCommand("component_"+customID, getUserID(i), false, time.Since(start))
+	} else {
+		metrics.RecordCommand("component_"+customID, getUserID(i), true, time.Since(start))
+		logging.LogDiscordCommand(getUserID(i), getUsername(i), "component_"+customID, true)
+	}
 }
 
 // messageCreate handles incoming messages for random responses.
@@ -307,8 +402,8 @@ func (b *Bot) handleHelpCommand(s *discordgo.Session, i *discordgo.InteractionCr
 
 // handleStatsCommand handles the /clippy_stats command.
 func (b *Bot) handleStatsCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
-	summary := metrics.Get().GetSummary()
-	uptime := time.Duration(summary.UptimeSeconds * float64(time.Second))
+	summary := metrics.GetMetricsSummary()
+	uptime := time.Duration(summary["uptime_seconds"].(float64) * float64(time.Second))
 
 	uptimeStr := formatDuration(uptime)
 
@@ -319,43 +414,26 @@ func (b *Bot) handleStatsCommand(s *discordgo.Session, i *discordgo.InteractionC
 		Fields: []*discordgo.MessageEmbedField{
 			{
 				Name: "Commands",
-				Value: fmt.Sprintf("Total: %d • Success Rate: %.1f%% (%d/%d)",
-					summary.CommandsTotal, summary.CommandSuccessRate, summary.CommandsSuccessful, summary.CommandsTotal),
+				Value: fmt.Sprintf("Total: %d • Success Rate: %.1f%%",
+					summary["commands_total"].(int64), summary["commands_success_rate"].(float64)),
 				Inline: false,
 			},
 			{
-				Name: "Chaos Level",
-				Value: fmt.Sprintf("Random Messages: %d • Rate: %.1f/hour • Throughput: %.2f cmds/sec",
-					summary.RandomMessages, summary.RandomMessagesPerHour, summary.CommandsPerSecond),
+				Name: "Response Performance",
+				Value: fmt.Sprintf("Average Response Time: %dms",
+					summary["avg_response_time_ms"].(int64)),
 				Inline: false,
 			},
 			{
-				Name:   "Response Performance",
-				Value:  fmt.Sprintf("Average Response Time: %.0fms", summary.AverageResponseTime),
+				Name: "Cache Performance",
+				Value: fmt.Sprintf("Hit Rate: %.1f%%",
+					summary["cache_hit_rate"].(float64)),
 				Inline: false,
 			},
 		},
 		Footer: &discordgo.MessageEmbedFooter{
 			Text: "Living in your head rent-free since 1997",
 		},
-	}
-
-	// Add error information if there are errors
-	if len(summary.ErrorsByType) > 0 {
-		errorInfo := make([]string, 0, len(summary.ErrorsByType))
-		for errorType, count := range summary.ErrorsByType {
-			if count > 0 {
-				errorInfo = append(errorInfo, fmt.Sprintf("%s: %d", string(errorType), count))
-			}
-		}
-
-		if len(errorInfo) > 0 {
-			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
-				Name:   "Error Summary",
-				Value:  strings.Join(errorInfo, "\n"),
-				Inline: false,
-			})
-		}
 	}
 
 	return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -378,9 +456,7 @@ func (b *Bot) sendRandomResponse(s *discordgo.Session, m *discordgo.MessageCreat
 	if err != nil {
 		logger := logging.WithComponent("discord")
 		logger.Error("Failed to send random response", "error", err)
-		metrics.RecordError(errors.NewDiscordError("failed to send random response", err))
 	} else {
-		metrics.RecordRandomMessage()
 		logger := logging.WithComponent("discord")
 		logger.Info("Sent random response", "channel", m.ChannelID, "user", m.Author.Username)
 	}
@@ -454,9 +530,7 @@ func (b *Bot) sendRandomMessage() {
 	if err != nil {
 		logger := logging.WithComponent("discord")
 		logger.Error("Failed to send random message", "error", err)
-		metrics.RecordError(errors.NewDiscordError("failed to send random message", err))
 	} else {
-		metrics.RecordRandomMessage()
 		logger := logging.WithComponent("discord")
 		logger.Info("Sent random message", "guild", guild.Name, "channel", channel.Name)
 	}

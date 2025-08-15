@@ -1,7 +1,7 @@
 {
   "clippy": {
     "bot_name": "Clippy Bot",
-    "discord_token": "YOUR_CLIPPY_BOT_TOKEN_HERE",
+    "MTG_DISCORD_TOKEN": "YOUR_CLIPPY_BOT_TOKEN_HERE",
     "command_prefix": "!",
     "guild_id": "YOUR_GUILD_ID_FOR_TESTING",
     "debug_mode": false,
@@ -13,7 +13,7 @@
   },
   "music": {
     "bot_name": "Music Bot",
-    "discord_token": "YOUR_MUSIC_BOT_TOKEN_HERE",
+    "MTG_DISCORD_TOKEN": "YOUR_MUSIC_BOT_TOKEN_HERE",
     "command_prefix": "!",
     "guild_id": "YOUR_GUILD_ID_FOR_TESTING",
     "debug_mode": false,

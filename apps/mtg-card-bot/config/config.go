@@ -41,9 +41,9 @@ func Load() (*Config, error) {
 	}
 
 	// Discord token is required.
-	cfg.DiscordToken = os.Getenv("DISCORD_TOKEN")
+	cfg.DiscordToken = os.Getenv("MTG_DISCORD_TOKEN")
 	if cfg.DiscordToken == "" {
-		return nil, fmt.Errorf("DISCORD_TOKEN environment variable is required")
+		return nil, fmt.Errorf("MTG_DISCORD_TOKEN environment variable is required")
 	}
 
 	// Optional configurations.

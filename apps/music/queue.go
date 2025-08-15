@@ -32,11 +32,12 @@ func NewMusicQueue() *MusicQueue {
 	}
 }
 
-// Add adds a song to the queue.
-func (q *MusicQueue) Add(song *Song) {
+// Add adds a song to the queue and returns its position.
+func (q *MusicQueue) Add(song *Song) int {
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
 	q.songs = append(q.songs, song)
+	return len(q.songs) - 1
 }
 
 // Next returns and removes the next song from the queue.

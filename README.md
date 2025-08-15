@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/dunamismax/go-discord-bots">
-    <img src="https://readme-typing-svg.demolab.com/?font=Fira+Code&size=24&pause=1000&color=00ADD8&center=true&vCenter=true&width=900&lines=Go+Discord+Bots+Monorepo;Three+Specialized+Bots+in+One+Repository;MTG+Card+Bot+with+Advanced+Filtering;Clippy+Bot+with+Chaos+Engineering;Music+Bot+with+Queue+Management;Modern+Go+Architecture+2025;Microservice+Pattern+Implementation;Shared+Libraries+and+Common+Infrastructure;Single+Binary+Deployments" alt="Typing SVG" />
+    <img src="https://readme-typing-svg.demolab.com/?font=Fira+Code&size=24&pause=1000&color=00ADD8&center=true&vCenter=true&width=900&lines=Go+Discord+Bots+Monorepo;Three+Specialized+Bots+in+One+Repository;MTG+Card+Bot+with+Advanced+Filtering;Clippy+Bot+with+Interactive+Slash+Commands;Music+Bot+with+Queue+Management;Modern+Go+Architecture+2025;Microservice+Pattern+Implementation;Shared+Libraries+and+Common+Infrastructure;Single+Binary+Deployments" alt="Typing SVG" />
   </a>
 </p>
 
@@ -27,14 +27,14 @@ A modern Discord bot monorepo written in Go, featuring three specialized bots wi
 **Bot Collection:**
 
 * **MTG Card Bot** – Advanced Magic card lookup with fuzzy search, filtering, and Scryfall API integration
-* **Clippy Bot** – Unhinged AI persona with chaos engineering and modern slash commands
+* **Clippy Bot** – Unhinged AI persona with interactive slash commands and button components
 * **Music Bot** – Full-featured audio playback with queue management and YouTube integration
 
 **Architecture Highlights:**
 
 * **Monorepo Design** – Independent bots sharing common infrastructure
 * **Microservice Pattern** – Each bot is self-contained with clear domain boundaries
-* **Shared Configuration** – Unified environment-based configuration system
+* **Unified Configuration** – Shared environment-based configuration system with bot-specific overrides
 * **Shared Libraries** – Common patterns extracted to `pkg/` for maximum reuse
 * **Observability First** – Structured logging, metrics, and performance monitoring built-in
 * **Modern Tooling** – Mage builds, typed errors, graceful shutdowns, and context-aware operations
@@ -49,7 +49,7 @@ git clone https://github.com/dunamismax/go-discord-bots.git
 cd go-discord-bots
 go mod tidy
 go install github.com/magefile/mage@latest
-cp .env.example .env  # Add your Discord bot tokens
+cp env.example .env  # Add your Discord bot tokens
 mage setup
 mage dev              # Run all bots
 ```
@@ -114,14 +114,19 @@ mage ci            # Complete CI pipeline
 !cache                # Cache utilization stats
 ```
 
-### Clippy Bot - Chaos Engineering
+### Clippy Bot - Interactive Chaos
 
 ```bash
-# Slash Commands (Modern Discord Integration)
+# Modern Slash Commands with Interactive Components
 /clippy                      # Unhinged Clippy response
-/clippy_wisdom              # Questionable life advice  
-/clippy_help                # Interactive help with buttons
+/clippy_wisdom              # Questionable life advice with styled embeds
+/clippy_help                # Interactive help with clickable buttons
 /clippy_stats               # Performance and chaos metrics
+
+# Interactive Button Features (triggered from /clippy_help)
+"More Chaos" button         # Activates chaos mode
+"I Regret This" button      # Regret acknowledgment
+"Classic Clippy" button     # Random classic response
 
 # Passive Features
 2% random response rate to any message
@@ -196,19 +201,26 @@ go-discord-bots/
 │   │   ├── discord/bot.go         # Discord integration layer
 │   │   ├── scryfall/client.go     # External API client
 │   │   ├── cache/cache.go         # Performance caching
+│   │   ├── config/config.go       # Bot-specific configuration
 │   │   └── metrics/metrics.go     # Observability
-│   ├── clippy/                    # Chaos engineering bot
+│   ├── clippy/                    # Modern slash command bot
 │   │   ├── main.go                # Enhanced with metrics
-│   │   ├── discord/bot.go         # Modern slash commands
-│   │   └── metrics/metrics.go     # Performance tracking
+│   │   ├── discord/bot.go         # Interactive slash commands
+│   │   └── (shared config)        # Uses pkg/config
 │   └── music/                     # Full-featured audio bot
+│       ├── main.go                # Audio streaming
+│       ├── bot.go                 # Command handling
+│       ├── audio.go               # Audio processing
+│       ├── queue.go               # Queue management
+│       └── types.go               # Data structures
 ├── pkg/                           # Shared libraries
 │   ├── config/                    # Unified configuration system
 │   ├── logging/                   # Structured logging
 │   ├── metrics/                   # Metrics collection
-│   └── errors/                    # Typed error handling
-├── .env                           # Shared environment configuration
-├── .env.example                   # Configuration template
+│   ├── errors/                    # Typed error handling
+│   └── discord/                   # Discord utilities
+├── env.example                    # Configuration template
+├── config.example.json            # Alternative config format
 └── magefile.go                    # Build automation
 ```
 
@@ -217,6 +229,8 @@ go-discord-bots/
 * **Domain-Driven Design** – Each bot owns its domain logic completely
 * **Microservice Architecture** – Independent deployment and scaling
 * **Shared Infrastructure** – Common patterns extracted to `pkg/`
+* **Guild ID Validation** – Automatic fallback to global commands for invalid guild IDs
+* **Modern Discord Integration** – Slash commands with button interactions
 * **Observability First** – Metrics, logging, and tracing from day one
 * **Performance Optimized** – Sub-100ms response times, >80% cache hit rates
 
@@ -242,19 +256,47 @@ Start development with `mage dev` for auto-restart functionality across all bots
 | **Cache Hit Rate** | 85% | N/A | N/A |
 | **Uptime** | 99.9% | 99.8% | 95% |
 
+### Configuration Features
+
+#### Guild ID Handling (New in v4.0)
+- **Valid Guild ID**: Commands register guild-specific for instant availability
+- **Invalid Guild ID**: Automatic fallback to global commands with warnings
+- **No Guild ID**: Global registration by default
+- **Snowflake Validation**: Proper Discord ID format checking
+
+#### Environment Configuration
+```bash
+# Bot-specific tokens
+CLIPPY_DISCORD_TOKEN=your_clippy_token
+MUSIC_DISCORD_TOKEN=your_music_token
+MTG_DISCORD_TOKEN=your_mtg_token
+
+# Guild targeting (optional)
+CLIPPY_GUILD_ID=your_guild_id
+MUSIC_GUILD_ID=your_guild_id
+MTG_GUILD_ID=your_guild_id
+
+# Performance tuning
+LOG_LEVEL=info
+DEBUG=false
+CACHE_TTL=1h
+```
+
 ### Why Go? (Migration from Python)
 
 #### Performance Gains
+
 - **10x faster startup** - 500ms vs 5s Python cold start
-- **3x lower memory usage** - 45MB vs 150MB Python equivalent
-- **5x better concurrent performance** - Native goroutines vs GIL limitations
-- **Zero warmup time** - Compiled binary, no interpretation overhead
+* **3x lower memory usage** - 45MB vs 150MB Python equivalent
+* **5x better concurrent performance** - Native goroutines vs GIL limitations
+* **Zero warmup time** - Compiled binary, no interpretation overhead
 
 #### Reliability Improvements  
+
 - **Compile-time error detection** - Catch bugs before deployment
-- **Memory safety** - No more mysterious Python memory leaks
-- **Dependency management** - Single binary, no "works on my machine"
-- **Graceful degradation** - Proper error boundaries and recovery
+* **Memory safety** - No more mysterious Python memory leaks
+* **Dependency management** - Single binary, no "works on my machine"
+* **Graceful degradation** - Proper error boundaries and recovery
 
 ## Deployment Options
 

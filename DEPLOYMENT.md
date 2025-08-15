@@ -79,12 +79,12 @@ cp .env.example .env
 ```
 
 Edit the `.env` file and replace the placeholder values:
-- `your_default_discord_token_here` → Can be any of your bot tokens as a fallback
+- `your_default_MTG_DISCORD_TOKEN_here` → Can be any of your bot tokens as a fallback
 - `your_clippy_bot_token_here` → Your Clippy Bot token from Step 1.3
 - `your_music_bot_token_here` → Your Music Bot token from Step 1.3
 - `your_guild_id_for_testing` → Your server ID from Step 2
 
-Note: The MTG Card Bot will use the global `DISCORD_TOKEN` unless you specify a specific token. You can add `MTG_DISCORD_TOKEN=your_mtg_token_here` if you want to use a separate token for the MTG bot.
+Note: The MTG Card Bot will use the global `MTG_DISCORD_TOKEN` unless you specify a specific token. You can add `MTG_MTG_DISCORD_TOKEN=your_mtg_token_here` if you want to use a separate token for the MTG bot.
 
 ## Step 4: Invite Bots to Your Server
 
@@ -170,7 +170,7 @@ After=network.target
 Type=simple
 User=botuser
 WorkingDirectory=/path/to/go-discord-bots
-Environment=DISCORD_TOKEN=your_token_here
+Environment=MTG_DISCORD_TOKEN=your_token_here
 ExecStart=/path/to/go-discord-bots/bin/mtg-card-bot
 Restart=always
 RestartSec=10

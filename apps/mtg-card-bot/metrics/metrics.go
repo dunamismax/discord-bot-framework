@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	mtgErrors "github.com/sawyer/go-discord-bots/apps/mtg-card-bot/errors"
+	mtgErrors "github.com/sawyer/go-discord-bots/pkg/errors"
 )
 
 // Metrics holds all application metrics.
@@ -353,9 +353,9 @@ func RecordAPIRequest(successful bool, responseTimeMs int64) {
 
 // RecordError is a convenience function to record errors.
 func RecordError(err error) {
-	var mtgErr *mtgErrors.MTGError
-	if errors.As(err, &mtgErr) {
-		Get().IncrementError(mtgErr.Type)
+	var botErr *mtgErrors.BotError
+	if errors.As(err, &botErr) {
+		Get().IncrementError(botErr.ErrorType)
 	} else {
 		Get().IncrementError(mtgErrors.ErrorTypeInternal)
 	}

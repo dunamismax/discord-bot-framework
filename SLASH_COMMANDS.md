@@ -9,16 +9,19 @@ This document lists available slash commands for each independent bot app in thi
 - /clippy_help: Get help (with interactive buttons).
 
 Automatic features
+
 - Random messages every 30–90 minutes (if enabled in config).
 - ~2% chance to reply to any message with a quote.
 
 Required invite scopes/permissions
+
 - Scopes: bot, applications.commands
 - Permissions: Send Messages, Use Application Commands, Add Reactions, Read Message History
 
 ## Music Bot (Slash Commands)
 
 Playback
+
 - /play query:<url or search>: Play from YouTube (must be in a voice channel).
 - /pause: Pause current song.
 - /resume: Resume playback.
@@ -27,6 +30,7 @@ Playback
 - /queue: Show the queue.
 
 Playlists (top-level commands; requires DB)
+
 - /playlist_create name:<text>: Create a playlist.
 - /playlist_list: List your playlists.
 - /playlist_show playlist_id:<number>: Show songs in a playlist.
@@ -36,10 +40,12 @@ Playlists (top-level commands; requires DB)
 - /playlist_delete playlist_id:<number>: Delete a playlist. (Not yet implemented)
 
 Notes
+
 - Requires yt-dlp and FFmpeg on host (FFmpeg playback not fully implemented; current code simulates timing).
 - Inactivity timeout disconnects the bot when idle.
 
 Required invite scopes/permissions
+
 - Scopes: bot, applications.commands
 - Permissions: Send Messages, Use Application Commands, Connect, Speak, Read Message History
 

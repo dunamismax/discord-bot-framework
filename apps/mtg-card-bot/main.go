@@ -1,24 +1,80 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/cache"
+	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/config"
 	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/discord"
+	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/logging"
+	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/metrics"
 	"github.com/sawyer/go-discord-bots/apps/mtg-card-bot/scryfall"
-	"github.com/sawyer/go-discord-bots/pkg/config"
-	"github.com/sawyer/go-discord-bots/pkg/logging"
-	"github.com/sawyer/go-discord-bots/pkg/metrics"
 )
 
+// loadEnvFile loads environment variables from .env file if it exists
+func loadEnvFile() error {
+	envFile := ".env"
+	if _, err := os.Stat(envFile); os.IsNotExist(err) {
+		// .env file doesn't exist, that's okay
+		return nil
+	}
+
+	file, err := os.Open(envFile)
+	if err != nil {
+		return fmt.Errorf("failed to open .env file: %w", err)
+	}
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("Warning: failed to close .env file: %v", err)
+		}
+	}()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) == 2 {
+			key := strings.TrimSpace(parts[0])
+			value := strings.TrimSpace(parts[1])
+
+			// Remove quotes if present
+			if (strings.HasPrefix(value, `"`) && strings.HasSuffix(value, `"`)) ||
+				(strings.HasPrefix(value, `'`) && strings.HasSuffix(value, `'`)) {
+				value = value[1 : len(value)-1]
+			}
+
+			// Only set if not already set by system environment
+			if os.Getenv(key) == "" {
+				if err := os.Setenv(key, value); err != nil {
+					log.Printf("Warning: failed to set environment variable %s: %v", key, err)
+				}
+			}
+		}
+	}
+
+	return scanner.Err()
+}
+
 func main() {
+	// Load environment variables from .env file
+	if err := loadEnvFile(); err != nil {
+		log.Printf("Warning: failed to load .env file: %v", err)
+	}
+
 	// Load configuration
-	cfg, err := config.Load(config.BotTypeMTG)
+	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
@@ -34,7 +90,7 @@ func main() {
 	logger.Info("Starting MTG Card Bot", "version", "2.0.0")
 
 	// Initialize metrics
-	metrics.Initialize(cfg.BotName, string(cfg.BotType))
+	metrics.Initialize()
 
 	// Initialize Scryfall client
 	scryfallClient := scryfall.NewClient()
