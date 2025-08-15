@@ -372,19 +372,19 @@ func (b *Bot) handleHelpCommand(s *discordgo.Session, i *discordgo.InteractionCr
 				discordgo.Button{
 					Label:    "More Chaos",
 					Style:    discordgo.DangerButton,
-					Emoji:    discordgo.ComponentEmoji{Name: "💥"},
+					Emoji:    &discordgo.ComponentEmoji{Name: "💥"},
 					CustomID: "clippy_chaos",
 				},
 				discordgo.Button{
 					Label:    "I Regret This",
 					Style:    discordgo.SecondaryButton,
-					Emoji:    discordgo.ComponentEmoji{Name: "😭"},
+					Emoji:    &discordgo.ComponentEmoji{Name: "😭"},
 					CustomID: "clippy_regret",
 				},
 				discordgo.Button{
 					Label:    "Classic Clippy",
 					Style:    discordgo.PrimaryButton,
-					Emoji:    discordgo.ComponentEmoji{Name: "📎"},
+					Emoji:    &discordgo.ComponentEmoji{Name: "📎"},
 					CustomID: "clippy_classic",
 				},
 			},

@@ -4,6 +4,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/binary"
 	"io"
 	"os/exec"
 	"sync"
@@ -12,6 +13,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/sawyer/go-discord-bots/pkg/errors"
 	"github.com/sawyer/go-discord-bots/pkg/logging"
+	"layeh.com/gopus"
 )
 
 // AudioStream represents an active audio stream.
@@ -57,13 +59,18 @@ func (as *AudioStream) Start(ctx context.Context) error {
 		return errors.NewAudioError("FFmpeg is not available", nil)
 	}
 
-	// Build FFmpeg command for Discord voice streaming
+	// Build FFmpeg command for Discord voice streaming with optimized settings
 	ffmpegArgs := []string{
+		"-reconnect", "1", // Enable reconnection for streams
+		"-reconnect_streamed", "1", // Reconnect even if stream seems to be CBR
+		"-reconnect_delay_max", "5", // Max delay between reconnection attempts
 		"-i", as.song.URL,
-		"-f", "s16le", // 16-bit signed little endian
+		"-f", "s16le", // 16-bit signed little endian PCM
 		"-ar", "48000", // 48kHz sample rate for Discord
 		"-ac", "2", // Stereo
-		"-loglevel", "panic", // Suppress FFmpeg output
+		"-loglevel", "error", // Show errors but not info
+		"-bufsize", "64k", // Larger buffer for smoother streaming
+		"-fflags", "+genpts", // Generate presentation timestamps
 		"-", // Output to stdout
 	}
 
@@ -80,102 +87,205 @@ func (as *AudioStream) Start(ctx context.Context) error {
 		return errors.NewAudioError("failed to start FFmpeg", err)
 	}
 
+	// Monitor FFmpeg process health in a separate goroutine
+	go func() {
+		err := as.cmd.Wait()
+		if err != nil && streamCtx.Err() == nil {
+			logger.Error("FFmpeg process exited unexpectedly", "error", err, "guild", as.guildID)
+			// Cancel the stream context to stop audio streaming
+			cancel()
+		}
+	}()
+
 	// Start streaming in a goroutine
 	go as.streamAudio(stdout)
 
 	return nil
 }
 
-// streamAudio streams audio data to Discord voice connection.
+// streamAudio streams audio data to Discord voice connection with proper Opus encoding.
 func (as *AudioStream) streamAudio(source io.Reader) {
 	defer close(as.done)
 
 	logger := logging.WithComponent("audio-stream")
 
-	// Create buffered reader for efficient reading
-	reader := bufio.NewReader(source)
+	// Create Opus encoder for Discord voice (48kHz, stereo, audio application)
+	opusEncoder, err := gopus.NewEncoder(48000, 2, gopus.Audio)
+	if err != nil {
+		logger.Error("Failed to create Opus encoder", "error", err)
+		return
+	}
 
-	// Discord voice expects 20ms frames (960 samples * 2 channels * 2 bytes = 3840 bytes per frame)
-	frameSize := 3840
-	buffer := make([]byte, frameSize)
+	// Set Opus encoder options for better quality
+	opusEncoder.SetBitrate(128000) // 128 kbps
+	// Note: SetComplexity method not available in this gopus version
 
-	// Wait for voice connection to be ready
+	// Wait for voice connection to be ready and properly connected
+	maxWaitTime := 10 * time.Second
+	waitStart := time.Now()
+	for !as.conn.Ready || as.conn.OpusSend == nil {
+		if time.Since(waitStart) > maxWaitTime {
+			logger.Error("Voice connection failed to become ready within timeout", "guild", as.guildID)
+			return
+		}
+		logger.Info("Waiting for voice connection to be ready", "guild", as.guildID,
+			"ready", as.conn.Ready, "opus_send_available", as.conn.OpusSend != nil)
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	logger.Info("Voice connection is ready, setting speaking state", "guild", as.guildID)
+
+	// Set speaking state - CRITICAL: This must be called before sending audio!
 	if err := as.conn.Speaking(true); err != nil {
 		logger.Error("Failed to set speaking state", "error", err)
 		return
 	}
 	defer func() {
+		logger.Info("Clearing speaking state", "guild", as.guildID)
 		if err := as.conn.Speaking(false); err != nil {
-			logger := logging.WithComponent("audio-stream")
-			logger.Error("Failed to set speaking to false", "error", err)
+			logger.Error("Failed to clear speaking state", "error", err)
 		}
 	}()
 
-	logger.Info("Audio streaming started", "guild", as.guildID)
+	urlPreview := as.song.URL
+	if len(urlPreview) > 50 {
+		urlPreview = urlPreview[:50] + "..."
+	}
+	logger.Info("Audio streaming started with Opus encoding", "guild", as.guildID,
+		"volume", as.volume, "song_url", urlPreview)
+
+	// Create large buffered reader for smooth streaming
+	reader := bufio.NewReaderSize(source, 64*1024) // 64KB buffer
+
+	// Discord expects 20ms of audio per frame at 48kHz stereo
+	// For Opus: 48000 Hz * 0.02 seconds = 960 samples per channel per frame
+	// For stereo: 960 samples * 2 channels = 1920 total samples
+	// For PCM bytes: 1920 samples * 2 bytes = 3840 bytes per frame
+	const frameSize = 3840
+	const samplesPerFrame = 1920 // Total samples for stereo (960 per channel)
+	const opusFrameSize = 960    // Samples per channel for Opus encoder
+	pcmBuffer := make([]byte, frameSize)
 
 	for {
 		// Check if context is cancelled
-		if as.cancel != nil {
-			select {
-			case <-as.getContext().Done():
-				logger.Info("Audio stream cancelled", "guild", as.guildID)
-				return
-			default:
-			}
+		select {
+		case <-as.getContext().Done():
+			logger.Info("Audio stream cancelled", "guild", as.guildID)
+			return
+		default:
 		}
 
 		// Check if paused
 		as.mutex.RLock()
-		if as.paused {
-			as.mutex.RUnlock()
+		paused := as.paused
+		as.mutex.RUnlock()
+
+		if paused {
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
-		as.mutex.RUnlock()
 
-		// Read audio frame
-		n, err := io.ReadFull(reader, buffer)
+		// Read PCM audio frame from FFmpeg with retry logic
+		n, err := io.ReadFull(reader, pcmBuffer)
 		if err != nil {
-			if err == io.EOF || err == io.ErrUnexpectedEOF {
-				logger.Info("Audio stream finished", "guild", as.guildID)
-			} else {
-				logger.Error("Error reading audio data", "error", err)
+			if err == io.EOF {
+				logger.Info("Audio stream finished normally (EOF)", "guild", as.guildID)
+				return
 			}
-			return
+			if err == io.ErrUnexpectedEOF {
+				logger.Warn("Unexpected EOF, trying to continue", "guild", as.guildID, "bytes_read", n)
+				// Try to continue with partial data if we got some
+				if n == 0 {
+					return
+				}
+				// Pad the remaining buffer with silence
+				for i := n; i < frameSize; i++ {
+					pcmBuffer[i] = 0
+				}
+				n = frameSize
+			} else {
+				logger.Error("Error reading audio data", "error", err, "guild", as.guildID)
+				return
+			}
 		}
 
 		// Apply volume adjustment if needed
 		if as.volume != 1.0 {
-			as.adjustVolume(buffer[:n])
+			as.adjustVolume(pcmBuffer[:n])
 		}
 
-		// Send audio frame to Discord
+		// Convert PCM bytes to int16 samples for Opus encoder
+		samples := make([]int16, n/2)
+		for i := 0; i < len(samples); i++ {
+			samples[i] = int16(binary.LittleEndian.Uint16(pcmBuffer[i*2 : i*2+2]))
+		}
+
+		// Ensure we have exactly the right number of samples for Opus
+		if len(samples) != samplesPerFrame {
+			// Pad with silence if needed
+			if len(samples) < samplesPerFrame {
+				paddedSamples := make([]int16, samplesPerFrame)
+				copy(paddedSamples, samples)
+				samples = paddedSamples
+			} else {
+				samples = samples[:samplesPerFrame]
+			}
+		}
+
+		// Encode PCM to Opus with correct frame size
+		// Opus expects 960 samples per channel, so for stereo we pass 1920 samples total
+		opusData, err := opusEncoder.Encode(samples, opusFrameSize, len(samples)*2) // *2 for bytes
+		if err != nil {
+			logger.Error("Failed to encode audio to Opus", "error", err, "samples_len", len(samples), "frame_size", opusFrameSize)
+			continue
+		}
+
+		// Send Opus-encoded audio to Discord
 		select {
-		case as.conn.OpusSend <- buffer[:n]:
-			// Frame sent successfully
-		case <-time.After(time.Second):
-			logger.Warn("Audio send timeout", "guild", as.guildID)
+		case as.conn.OpusSend <- opusData:
+			// Successfully sent audio frame (only log every 50 frames to reduce spam)
+			// logger.Debug("Sent audio frame", "guild", as.guildID, "opus_size", len(opusData))
+		case <-time.After(time.Millisecond * 100):
+			logger.Warn("Audio send timeout, skipping frame", "guild", as.guildID)
+		case <-as.getContext().Done():
+			logger.Info("Audio stream cancelled during send", "guild", as.guildID)
 			return
 		}
 
-		// Discord expects 20ms between frames
-		time.Sleep(20 * time.Millisecond)
+		// Wait exactly 20ms before sending next frame for proper timing
+		// Use a timer for more accurate timing than Sleep
+		timer := time.NewTimer(20 * time.Millisecond)
+		select {
+		case <-timer.C:
+			// Continue to next frame
+		case <-as.getContext().Done():
+			timer.Stop()
+			logger.Info("Audio stream cancelled during timing wait", "guild", as.guildID)
+			return
+		}
+		timer.Stop()
 	}
 }
 
 // adjustVolume applies volume adjustment to audio buffer.
 func (as *AudioStream) adjustVolume(buffer []byte) {
-	// Simple volume adjustment for 16-bit signed audio
+	// Simple volume adjustment for 16-bit signed little-endian audio
 	for i := 0; i < len(buffer)-1; i += 2 {
-		// Convert bytes to 16-bit signed integer
-		sample := int16(buffer[i]) | int16(buffer[i+1])<<8
+		// Convert bytes to 16-bit signed integer (little-endian)
+		sample := int16(binary.LittleEndian.Uint16(buffer[i : i+2]))
 
-		// Apply volume
-		sample = int16(float64(sample) * as.volume)
+		// Apply volume with clamping to prevent overflow
+		newSample := float64(sample) * as.volume
+		if newSample > 32767 {
+			newSample = 32767
+		} else if newSample < -32768 {
+			newSample = -32768
+		}
 
-		// Convert back to bytes
-		buffer[i] = byte(sample)
-		buffer[i+1] = byte(sample >> 8)
+		sample = int16(newSample)
+
+		// Convert back to bytes (little-endian)
+		binary.LittleEndian.PutUint16(buffer[i:i+2], uint16(sample))
 	}
 }
 

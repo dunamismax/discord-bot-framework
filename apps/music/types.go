@@ -4,8 +4,10 @@ package main
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/sawyer/go-discord-bots/pkg/errors"
 	"github.com/sawyer/go-discord-bots/pkg/logging"
 )
 
@@ -105,14 +107,33 @@ func (ap *AudioPlayer) GetConnection(session *discordgo.Session, guildID, channe
 		delete(ap.connections, guildID)
 	}
 
-	// Create new voice connection
-	conn, err := session.ChannelVoiceJoin(guildID, channelID, false, true)
+	// Create new voice connection (mute=false, deaf=false for audio streaming)
+	conn, err := session.ChannelVoiceJoin(guildID, channelID, false, false)
 	if err != nil {
 		return nil, err
 	}
 
-	ap.connections[guildID] = conn
-	return conn, nil
+	// Wait for connection to be fully ready with timeout
+	timeout := time.After(10 * time.Second)
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-timeout:
+			logger := logging.WithComponent("audio-player")
+			logger.Error("Voice connection timeout", "guild", guildID, "channel", channelID)
+			if err := conn.Disconnect(); err != nil {
+				logger.Error("Failed to disconnect after timeout", "error", err)
+			}
+			return nil, errors.NewDiscordError("voice connection timeout", nil)
+		case <-ticker.C:
+			if conn.Ready {
+				ap.connections[guildID] = conn
+				return conn, nil
+			}
+		}
+	}
 }
 
 // PlayNext plays the next song in queue.
@@ -147,17 +168,28 @@ func (ap *AudioPlayer) PlayNext(session *discordgo.Session, guildID string, conn
 
 	// Start playing the song using enhanced audio player
 	go func() {
+		// Use a context without timeout for audio streaming since songs can be long
 		ctx := context.Background()
 		err := ap.enhanced.PlaySong(ctx, guildID, nextSong, connection)
 		if err != nil {
 			logger.Error("Failed to play song", "error", err, "song", nextSong.Title)
-			// Try next song on error
+			// Clear current song and try next song on error
+			queue.SetCurrent(nil)
+			queue.SetPlaying(false)
 			ap.PlayNext(session, guildID, connection, queue)
 			return
 		}
 
 		// Song finished naturally, play next song if not skipped
+		logger.Info("Song playback finished", "guild", guildID, "song", nextSong.Title, "should_skip", queue.ShouldSkip())
 		if !queue.ShouldSkip() {
+			// Clear current song before playing next
+			queue.SetCurrent(nil)
+			ap.PlayNext(session, guildID, connection, queue)
+		} else {
+			// Song was skipped, clear states
+			queue.SetCurrent(nil)
+			queue.SetSkip(false)
 			ap.PlayNext(session, guildID, connection, queue)
 		}
 	}()

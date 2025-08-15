@@ -29,6 +29,10 @@ type SlashCommandHandler func(s *discordgo.Session, i *discordgo.InteractionCrea
 
 // NewBot creates a new Music bot instance.
 func NewBot(cfg *config.Config) (*Bot, error) {
+	// Change command prefix to avoid conflicts since music bot only uses slash commands
+	cfg.CommandPrefix = "/music_disabled" // Use a prefix that won't conflict
+
+	// Create normal BaseBot - we'll override the message handler behavior
 	baseBot, err := discord.NewBaseBot(cfg)
 	if err != nil {
 		return nil, errors.NewConfigError("failed to create base bot", err)
@@ -55,8 +59,15 @@ func NewBot(cfg *config.Config) (*Bot, error) {
 	bot.registerSlashCommands()
 	bot.BaseBot.GetSession().AddHandler(bot.onInteractionCreate)
 
+	// Remove the BaseBot's message handler and replace with empty handler
+	// The music bot should only respond to slash commands, not text commands
+	bot.BaseBot.GetSession().AddHandler(bot.onMessageCreate)
+
 	// Set voice intents for audio functionality
 	bot.GetSession().Identify.Intents |= discordgo.IntentsGuildVoiceStates
+
+	// Enable voice state tracking for the music bot
+	bot.GetSession().State.TrackVoice = true
 
 	return bot, nil
 }
@@ -131,7 +142,7 @@ func (b *Bot) registerSlashCommandsWithDiscord() error {
 	commands := []*discordgo.ApplicationCommand{
 		{
 			Name:        "play",
-			Description: "Play music from YouTube",
+			Description: "Play music from YouTube (auto-joins your voice channel)",
 			Options: []*discordgo.ApplicationCommandOption{
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
@@ -374,18 +385,31 @@ func (b *Bot) respondWithError(s *discordgo.Session, i *discordgo.InteractionCre
 }
 
 // handlePlaySlashCommand handles the /play slash command.
+// Automatically joins the user's voice channel and plays the requested music.
 func (b *Bot) handlePlaySlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 	startTime := time.Now()
 
 	// Get command options
 	options := i.ApplicationCommandData().Options
 	if len(options) == 0 || options[0].Name != "query" {
-		return errors.NewValidationError("Please provide a song name or URL")
+		return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "❌ Please provide a song name or URL",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
 	}
 
 	query := options[0].StringValue()
 	if err := discord.ValidateInput(query, 500); err != nil {
-		return err
+		return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: fmt.Sprintf("❌ Invalid input: %s", err.Error()),
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
 	}
 
 	userID := getUserID(i)
@@ -395,30 +419,56 @@ func (b *Bot) handlePlaySlashCommand(s *discordgo.Session, i *discordgo.Interact
 	// Check if user is in a voice channel
 	voiceState, err := b.getUserVoiceState(s, guildID, userID)
 	if err != nil {
-		return errors.NewDiscordError("failed to get voice state", err)
+		return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "❌ Failed to check your voice channel status",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
 	}
 	if voiceState == nil {
-		return errors.NewValidationError("You must be in a voice channel to play music")
+		return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "❌ You must be in a voice channel to play music! Please join a voice channel and try again.",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
 	}
 
-	// Defer the response to avoid timeout
+	// Check if bot is already in a different voice channel
+	botVoiceState, err := b.getUserVoiceState(s, guildID, s.State.User.ID)
+	if err == nil && botVoiceState != nil && botVoiceState.ChannelID != voiceState.ChannelID {
+		return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "❌ I'm already playing music in another voice channel! Please join that channel or wait for the current session to end.",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+	}
+
+	// Send immediate response to avoid timeout
 	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: "🎵 Searching and loading your song...",
+		},
 	})
 	if err != nil {
-		return errors.NewDiscordError("failed to defer response", err)
+		return errors.NewDiscordError("failed to respond to interaction", err)
 	}
 
 	// Extract song information
 	song, err := b.extractSongInfo(query)
 	if err != nil {
 		metrics.RecordAPIRequest("youtube", "extract", false, time.Since(startTime))
-		_, followErr := s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
-			Content: fmt.Sprintf("❌ Could not find or load the requested song: %s", err.Error()),
-			Flags:   discordgo.MessageFlagsEphemeral,
+		_, editErr := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			Content: &[]string{fmt.Sprintf("❌ Could not find or load the requested song: %s", err.Error())}[0],
 		})
-		if followErr != nil {
-			return followErr
+		if editErr != nil {
+			return editErr
 		}
 		return err
 	}
@@ -426,16 +476,16 @@ func (b *Bot) handlePlaySlashCommand(s *discordgo.Session, i *discordgo.Interact
 	song.RequesterID = userID
 	song.RequesterName = username
 
-	// Get or create audio connection
+	// Automatically join the user's voice channel
 	audioConn, err := b.audioPlayer.GetConnection(s, guildID, voiceState.ChannelID)
 	if err != nil {
-		_, followErr := s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
-			Content: fmt.Sprintf("❌ Failed to connect to voice channel: %s", err.Error()),
-			Flags:   discordgo.MessageFlagsEphemeral,
+		_, editErr := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			Content: &[]string{fmt.Sprintf("❌ Failed to join your voice channel: %s\n\nPlease check that I have permission to connect and speak in this channel.", err.Error())}[0],
 		})
-		if followErr != nil {
-			return followErr
+		if editErr != nil {
+			return editErr
 		}
+		metrics.RecordCommand("play", userID, false, time.Since(startTime))
 		return err
 	}
 
@@ -445,14 +495,14 @@ func (b *Bot) handlePlaySlashCommand(s *discordgo.Session, i *discordgo.Interact
 
 	var response string
 	if position == 0 && !queue.IsPlaying() {
-		response = fmt.Sprintf("🎵 Now playing: **%s**", song.Title)
+		response = fmt.Sprintf("🔊 Joined your voice channel and now playing: **%s**", song.Title)
 		go b.audioPlayer.PlayNext(s, guildID, audioConn, queue)
 	} else {
 		response = fmt.Sprintf("🎵 Added to queue: **%s**\nPosition in queue: %d", song.Title, position+1)
 	}
 
-	_, err = s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
-		Content: response,
+	_, err = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+		Content: &response,
 	})
 
 	metrics.RecordCommand("play", userID, err == nil, time.Since(startTime))
@@ -464,6 +514,11 @@ func (b *Bot) handlePauseSlashCommand(s *discordgo.Session, i *discordgo.Interac
 	startTime := time.Now()
 	userID := getUserID(i)
 	guildID := i.GuildID
+
+	// Validate user is in a voice channel with the bot
+	if err := b.validateUserInBotVoiceChannel(s, i); err != nil {
+		return err
+	}
 
 	queue := b.queueManager.GetQueue(guildID)
 	if !queue.IsPlaying() {
@@ -499,6 +554,11 @@ func (b *Bot) handleResumeSlashCommand(s *discordgo.Session, i *discordgo.Intera
 	userID := getUserID(i)
 	guildID := i.GuildID
 
+	// Validate user is in a voice channel with the bot
+	if err := b.validateUserInBotVoiceChannel(s, i); err != nil {
+		return err
+	}
+
 	queue := b.queueManager.GetQueue(guildID)
 	if !queue.IsPaused() {
 		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -532,6 +592,11 @@ func (b *Bot) handleSkipSlashCommand(s *discordgo.Session, i *discordgo.Interact
 	startTime := time.Now()
 	userID := getUserID(i)
 	guildID := i.GuildID
+
+	// Validate user is in a voice channel with the bot
+	if err := b.validateUserInBotVoiceChannel(s, i); err != nil {
+		return err
+	}
 
 	queue := b.queueManager.GetQueue(guildID)
 	if !queue.IsPlaying() {
@@ -573,6 +638,11 @@ func (b *Bot) handleStopSlashCommand(s *discordgo.Session, i *discordgo.Interact
 	startTime := time.Now()
 	userID := getUserID(i)
 	guildID := i.GuildID
+
+	// Validate user is in a voice channel with the bot
+	if err := b.validateUserInBotVoiceChannel(s, i); err != nil {
+		return err
+	}
 
 	// Stop audio stream, disconnect from voice and clear queue
 	b.audioPlayer.enhanced.StopStream(guildID)
@@ -627,6 +697,11 @@ func (b *Bot) handleVolumeSlashCommand(s *discordgo.Session, i *discordgo.Intera
 	startTime := time.Now()
 	userID := getUserID(i)
 	guildID := i.GuildID
+
+	// Validate user is in a voice channel with the bot
+	if err := b.validateUserInBotVoiceChannel(s, i); err != nil {
+		return err
+	}
 
 	options := i.ApplicationCommandData().Options
 
@@ -851,23 +926,104 @@ func (b *Bot) respondWithSlashError(s *discordgo.Session, i *discordgo.Interacti
 
 // getUserVoiceState gets the user's voice state.
 func (b *Bot) getUserVoiceState(s *discordgo.Session, guildID, userID string) (*discordgo.VoiceState, error) {
+	logger := logging.WithComponent("music-bot")
+
 	guild, err := s.State.Guild(guildID)
 	if err != nil {
+		logger.Error("Failed to get guild", "guild_id", guildID, "error", err)
 		return nil, err
 	}
 
+	logger.Info("Checking voice states", "guild_id", guildID, "user_id", userID, "total_voice_states", len(guild.VoiceStates))
+
 	for _, vs := range guild.VoiceStates {
+		logger.Info("Checking voice state", "voice_user_id", vs.UserID, "target_user_id", userID, "channel_id", vs.ChannelID)
 		if vs.UserID == userID {
+			logger.Info("Found user voice state", "user_id", userID, "channel_id", vs.ChannelID)
 			return vs, nil
 		}
 	}
 
+	logger.Info("User not found in any voice channel", "user_id", userID)
 	return nil, nil
+}
+
+// validateUserInBotVoiceChannel validates that the user is in the same voice channel as the bot.
+func (b *Bot) validateUserInBotVoiceChannel(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+	userID := getUserID(i)
+	guildID := i.GuildID
+
+	// Check if user is in a voice channel
+	userVoiceState, err := b.getUserVoiceState(s, guildID, userID)
+	if err != nil {
+		return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "❌ Failed to check your voice channel status",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+	}
+	if userVoiceState == nil {
+		return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "❌ You must be in a voice channel to use this command",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+	}
+
+	// Check if bot is in a voice channel
+	botVoiceState, err := b.getUserVoiceState(s, guildID, s.State.User.ID)
+	if err != nil || botVoiceState == nil {
+		return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "❌ I'm not currently in a voice channel. Use `/play` to start playing music first",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+	}
+
+	// Check if user and bot are in the same voice channel
+	if userVoiceState.ChannelID != botVoiceState.ChannelID {
+		return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "❌ You must be in the same voice channel as me to use this command",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+	}
+
+	return nil
 }
 
 // extractSongInfo extracts song information from a query using yt-dlp.
 func (b *Bot) extractSongInfo(query string) (*Song, error) {
 	return b.audioExtractor.ExtractSongInfo(query)
+}
+
+// onMessageCreate overrides BaseBot's message handler to prevent interference.
+// The music bot should only respond to slash commands, not text commands.
+func (b *Bot) onMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
+	// Explicitly do nothing - music bot only handles slash commands
+	// This prevents interference with other bots that use text commands
+	// Debug: if this function is being called with ! commands, there's still interference
+	logger := logging.WithComponent("music-bot")
+	if strings.HasPrefix(m.Content, "!") && !m.Author.Bot {
+		logger.Debug("Music bot received text command but ignoring", "content", m.Content[:min(20, len(m.Content))], "author", m.Author.Username)
+	}
+	// Explicitly do nothing - no return needed
+}
+
+// min returns the minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // buildQueueEmbed builds an embed showing the current queue.
