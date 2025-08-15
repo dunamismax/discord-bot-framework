@@ -18,16 +18,17 @@ import (
 
 // AudioStream represents an active audio stream.
 type AudioStream struct {
-	guildID string
-	song    *Song
-	conn    *discordgo.VoiceConnection
-	cmd     *exec.Cmd
-	ctx     context.Context
-	cancel  context.CancelFunc
-	done    chan struct{}
-	volume  float64
-	paused  bool
-	mutex   sync.RWMutex
+	guildID  string
+	song     *Song
+	conn     *discordgo.VoiceConnection
+	cmd      *exec.Cmd
+	ytdlpCmd *exec.Cmd
+	ctx      context.Context
+	cancel   context.CancelFunc
+	done     chan struct{}
+	volume   float64
+	paused   bool
+	mutex    sync.RWMutex
 }
 
 // NewAudioStream creates a new audio stream.
@@ -54,40 +55,66 @@ func (as *AudioStream) Start(ctx context.Context) error {
 	as.ctx = streamCtx
 	as.cancel = cancel
 
-	// Check if FFmpeg is available
+	// Check if FFmpeg and yt-dlp are available
 	if !as.isFFmpegAvailable() {
 		return errors.NewAudioError("FFmpeg is not available", nil)
 	}
+	if !as.isYtDlpAvailable() {
+		return errors.NewAudioError("yt-dlp is not available", nil)
+	}
+
+	// Use yt-dlp to stream audio URL, then pipe to FFmpeg for processing
+	as.ytdlpCmd = exec.CommandContext(streamCtx, "yt-dlp", "-f", "bestaudio", "-o", "-", as.song.URL)
 
 	// Build FFmpeg command for Discord voice streaming with optimized settings
 	ffmpegArgs := []string{
+		"-nostdin", "-hide_banner", "-loglevel", "warning",
 		"-reconnect", "1", // Enable reconnection for streams
 		"-reconnect_streamed", "1", // Reconnect even if stream seems to be CBR
 		"-reconnect_delay_max", "5", // Max delay between reconnection attempts
-		"-i", as.song.URL,
-		"-f", "s16le", // 16-bit signed little endian PCM
-		"-ar", "48000", // 48kHz sample rate for Discord
+		"-i", "pipe:0", // Read from stdin (yt-dlp output)
+		"-vn",      // No video
 		"-ac", "2", // Stereo
-		"-loglevel", "error", // Show errors but not info
-		"-bufsize", "64k", // Larger buffer for smoother streaming
-		"-fflags", "+genpts", // Generate presentation timestamps
-		"-", // Output to stdout
+		"-ar", "48000", // 48kHz sample rate for Discord
+		"-af", "aresample=async=1:min_hard_comp=0.100:first_pts=0", // Async resampling for smoother playback
+		"-f", "s16le", // 16-bit signed little endian PCM
+		"pipe:1", // Output to stdout
 	}
 
 	as.cmd = exec.CommandContext(streamCtx, "ffmpeg", ffmpegArgs...)
 
-	// Get stdout pipe for audio data
+	// Set up the pipeline: yt-dlp -> ffmpeg
+	ytdlpStdout, err := as.ytdlpCmd.StdoutPipe()
+	if err != nil {
+		return errors.NewAudioError("failed to create yt-dlp stdout pipe", err)
+	}
+	as.cmd.Stdin = ytdlpStdout
+
+	// Get stdout pipe for audio data from ffmpeg
 	stdout, err := as.cmd.StdoutPipe()
 	if err != nil {
-		return errors.NewAudioError("failed to create stdout pipe", err)
+		return errors.NewAudioError("failed to create ffmpeg stdout pipe", err)
 	}
 
-	// Start FFmpeg process
+	// Start both processes
+	if err := as.ytdlpCmd.Start(); err != nil {
+		return errors.NewAudioError("failed to start yt-dlp", err)
+	}
 	if err := as.cmd.Start(); err != nil {
+		if killErr := as.ytdlpCmd.Process.Kill(); killErr != nil {
+			logger.Error("Failed to kill yt-dlp process during cleanup", "error", killErr)
+		}
 		return errors.NewAudioError("failed to start FFmpeg", err)
 	}
 
-	// Monitor FFmpeg process health in a separate goroutine
+	// Monitor both processes in separate goroutines
+	go func() {
+		err := as.ytdlpCmd.Wait()
+		if err != nil && streamCtx.Err() == nil {
+			logger.Error("yt-dlp process exited unexpectedly", "error", err, "guild", as.guildID)
+		}
+	}()
+
 	go func() {
 		err := as.cmd.Wait()
 		if err != nil && streamCtx.Err() == nil {
@@ -166,6 +193,10 @@ func (as *AudioStream) streamAudio(source io.Reader) {
 	const opusFrameSize = 960    // Samples per channel for Opus encoder
 	pcmBuffer := make([]byte, frameSize)
 
+	// Use a ticker for precise 20ms intervals - CRITICAL for smooth playback
+	ticker := time.NewTicker(20 * time.Millisecond)
+	defer ticker.Stop()
+
 	for {
 		// Check if context is cancelled
 		select {
@@ -240,6 +271,15 @@ func (as *AudioStream) streamAudio(source io.Reader) {
 			continue
 		}
 
+		// Wait for the next 20ms tick before sending - CRITICAL for timing
+		select {
+		case <-ticker.C:
+			// Now we're on the right timing schedule
+		case <-as.getContext().Done():
+			logger.Info("Audio stream cancelled during timing wait", "guild", as.guildID)
+			return
+		}
+
 		// Send Opus-encoded audio to Discord
 		select {
 		case as.conn.OpusSend <- opusData:
@@ -251,19 +291,6 @@ func (as *AudioStream) streamAudio(source io.Reader) {
 			logger.Info("Audio stream cancelled during send", "guild", as.guildID)
 			return
 		}
-
-		// Wait exactly 20ms before sending next frame for proper timing
-		// Use a timer for more accurate timing than Sleep
-		timer := time.NewTimer(20 * time.Millisecond)
-		select {
-		case <-timer.C:
-			// Continue to next frame
-		case <-as.getContext().Done():
-			timer.Stop()
-			logger.Info("Audio stream cancelled during timing wait", "guild", as.guildID)
-			return
-		}
-		timer.Stop()
 	}
 }
 
@@ -330,10 +357,14 @@ func (as *AudioStream) Stop() {
 		as.cancel()
 	}
 
-	// Kill FFmpeg process
+	// Kill both processes
+	if as.ytdlpCmd != nil && as.ytdlpCmd.Process != nil {
+		if err := as.ytdlpCmd.Process.Kill(); err != nil {
+			logger.Error("Failed to kill yt-dlp process", "error", err)
+		}
+	}
 	if as.cmd != nil && as.cmd.Process != nil {
 		if err := as.cmd.Process.Kill(); err != nil {
-			logger := logging.WithComponent("audio-stream")
 			logger.Error("Failed to kill FFmpeg process", "error", err)
 		}
 	}
@@ -363,6 +394,12 @@ func (as *AudioStream) getContext() context.Context {
 // isFFmpegAvailable checks if FFmpeg is available.
 func (as *AudioStream) isFFmpegAvailable() bool {
 	_, err := exec.LookPath("ffmpeg")
+	return err == nil
+}
+
+// isYtDlpAvailable checks if yt-dlp is available.
+func (as *AudioStream) isYtDlpAvailable() bool {
+	_, err := exec.LookPath("yt-dlp")
 	return err == nil
 }
 

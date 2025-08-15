@@ -33,13 +33,15 @@ func (e *AudioExtractor) ExtractSongInfo(query string) (*Song, error) {
 	baseArgs := []string{
 		"--dump-json",
 		"--no-playlist",
-		"--format", "bestaudio/best", // Get the best audio available
+		"--format", "bestaudio[ext=m4a]/bestaudio/best[height<=?480]", // Prefer m4a audio, fallback to best with height limit
 		"--socket-timeout", "30", // Shorter timeout to fail faster
-		"--retries", "2", // Fewer retries to avoid long waits
-		"--fragment-retries", "2", // Fewer fragment retries
+		"--retries", "3", // Allow a few retries
+		"--fragment-retries", "3", // Fragment retries
 		"--extractor-retries", "2", // Extractor retries
-		"--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", // Better user agent
-		"--referer", "https://www.youtube.com/", // Add referer for YouTube
+		"--user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", // Updated user agent
+		"--geo-bypass",            // Try to bypass geo-restrictions
+		"--no-check-certificates", // Skip SSL certificate verification if needed
+		"--prefer-free-formats",   // Prefer free formats when available
 	}
 
 	if strings.HasPrefix(query, "http://") || strings.HasPrefix(query, "https://") {
@@ -53,14 +55,28 @@ func (e *AudioExtractor) ExtractSongInfo(query string) (*Song, error) {
 	}
 
 	// Execute the command with better error capture
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput() // Capture both stdout and stderr
 	if err != nil {
-		// Try to get stderr for better error information
-		if exitError, ok := err.(*exec.ExitError); ok {
-			stderr := string(exitError.Stderr)
-			return nil, errors.NewAudioError(fmt.Sprintf("yt-dlp failed: %s", stderr), err)
+		// Parse the output for specific error cases
+		outputStr := string(output)
+		if strings.Contains(outputStr, "HTTP Error 403") || strings.Contains(outputStr, "Forbidden") {
+			return nil, errors.NewAudioError("unable to access video (age-restricted or region-blocked)", err)
 		}
-		return nil, errors.NewAudioError("failed to extract song info", err)
+		if strings.Contains(outputStr, "Private video") {
+			return nil, errors.NewAudioError("video is private", err)
+		}
+		if strings.Contains(outputStr, "Video unavailable") {
+			return nil, errors.NewAudioError("video is unavailable", err)
+		}
+		if strings.Contains(outputStr, "No video results") {
+			return nil, errors.NewAudioError("no results found for search query", err)
+		}
+		if strings.Contains(outputStr, "Sign in to confirm") {
+			return nil, errors.NewAudioError("video requires sign-in (age-restricted)", err)
+		}
+
+		// If no specific error found, return the actual output for debugging
+		return nil, errors.NewAudioError(fmt.Sprintf("yt-dlp failed: %s", strings.TrimSpace(outputStr)), err)
 	}
 
 	// Parse the JSON output

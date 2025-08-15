@@ -259,12 +259,14 @@ Start development with `mage dev` for auto-restart functionality across all bots
 ### Configuration Features
 
 #### Guild ID Handling (New in v4.0)
+
 - **Valid Guild ID**: Commands register guild-specific for instant availability
-- **Invalid Guild ID**: Automatic fallback to global commands with warnings
-- **No Guild ID**: Global registration by default
-- **Snowflake Validation**: Proper Discord ID format checking
+* **Invalid Guild ID**: Automatic fallback to global commands with warnings
+* **No Guild ID**: Global registration by default
+* **Snowflake Validation**: Proper Discord ID format checking
 
 #### Environment Configuration
+
 ```bash
 # Bot-specific tokens
 CLIPPY_DISCORD_TOKEN=your_clippy_token
@@ -286,14 +288,16 @@ CACHE_TTL=1h
 
 #### Performance Gains
 
-- **10x faster startup** - 500ms vs 5s Python cold start
+* **10x faster startup** - 500ms vs 5s Python cold start
+
 * **3x lower memory usage** - 45MB vs 150MB Python equivalent
 * **5x better concurrent performance** - Native goroutines vs GIL limitations
 * **Zero warmup time** - Compiled binary, no interpretation overhead
 
 #### Reliability Improvements  
 
-- **Compile-time error detection** - Catch bugs before deployment
+* **Compile-time error detection** - Catch bugs before deployment
+
 * **Memory safety** - No more mysterious Python memory leaks
 * **Dependency management** - Single binary, no "works on my machine"
 * **Graceful degradation** - Proper error boundaries and recovery
